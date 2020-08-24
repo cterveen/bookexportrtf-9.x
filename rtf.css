@@ -8,7 +8,7 @@
  *    span
  *    del s ins
  *    u
- *    div (as part of the parental tree)
+ *    div (as part of the parental tree; page breaks)
  *  
  *  Build in classes: 
  *    .header-left
@@ -37,7 +37,10 @@
  *    valign [top middle bottom]
  *    width [cm mm in px pt pc]
  *      note that the default page width (ex. margins) is about 554 pixels
- *    
+ * 
+ *   Properties only applied in divs
+ *    page-break-after [always, avoid]   
+ * 
  * Note that values and colors should be in css format, this includes unit or
  * type specification. All values will be converted to rtf appropriate values.
  * Supported values are mentioned between square brackets behind the property.
@@ -116,4 +119,8 @@ del {
 
 .footer-right {
   text-align: right; 
+}
+
+.field--name-body {
+  page-break-after: always;   
 }
