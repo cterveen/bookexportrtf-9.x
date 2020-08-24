@@ -3,6 +3,7 @@
 namespace Drupal\bookexportrtf\Controller;
 
 use CssParser;
+use DateTime;
 use Drupal\book\BookExport;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Render\RendererInterface;
@@ -64,6 +65,10 @@ class BookExportRTFController extends ControllerBase {
   public function __construct(BookExport $bookExport, RendererInterface $renderer) {
     $this->bookExport = $bookExport;
     $this->renderer = $renderer;
+    
+    // variables to be used within the class
+    global $base_url;
+    $this->bookexportrtf_base_url = $base_url;
   }
 
    /**
@@ -84,56 +89,74 @@ class BookExportRTFController extends ControllerBase {
    *
    * @return array
    *   Return markup array.
-   *
    */
+   
   public function content(NodeInterface $node) {
     if (!isset($node->book)) {
-      return array(
+      return [
         '#type' => 'markup',
-        '#markup' => $this->t("Not a book page, so no index will be made."),
-      );
+        '#markup' => $this->t("Not a book page, so nothing to export."),
+      ];
     }
   
-    // Grab the contents of the book in HTML form
-    $exported_book = $this->bookExport->bookExportHtml($node);
-    $content = new Response($this->renderer->renderRoot($exported_book));
-     
-    // Filter out the named anchors that should be in the index
-    global $base_url;
-    $this->bookexportrtf_base_url = $base_url;
-    $rtf = $this->bookexportrtf_convert($content);
-        
-    file_put_contents('sites/default/files/gele-boekje.rtf' , $rtf);
+    // Get the node and subnodes in RTF format
+    $rtf = $this->bookexportrtf_convert($node);
+  
+    /** 
+      * TODO: this code creates a nice download but generates errors on the next visited page
+      * header("Content-Type: application/rtf");
+      * header("Content-Disposition: inline; filename=\"gele-boekje.rtf\"");
+      * echo $rtf;
+      */
+    file_put_contents("sites/default/files/gele-boekje.rtf", $rtf);
     
-    return array(
+    return [
       '#type' => 'markup',
       '#markup' => $this->t("<a href = '/~rork/drupal9/sites/default/files/gele-boekje.rtf'>download</a>"),
-    );
+    ];
   }
   
   /**
-   * The engine, convert HTML output to RTF and add some shiny touches.
+   * Converts the book and it's subpages to RTF.
+   *
+   * @param \Drupal\node\NodeInterface $node
+   *   The node to export.
+   *
+   * @return variable
+   *   Return the book in RTF format
    */
 
-  function bookexportrtf_convert($content) {
-    $this->bookexportrtf_firstpage = 1;
+  private function bookexportrtf_convert(NodeInterface $node) {
+    // Grab the contents of the book in HTML form
+    $exported_book = $this->bookExport->bookExportHtml($node);
+    $content = new Response($this->renderer->renderRoot($exported_book));
+
+    /**
+     * Prepare the HTML for processing  
+     */
+    
     // Remove everything before and after the HTML tags
     $content = preg_replace("|^[^<]+|", "", $content);
     $content = preg_replace("|>[^>]+$|", ">", $content);
     
+    // Remove newlines
+    $content = preg_replace("|[\r\n]|", "", $content);
+    
     // Remove white-space between structural elements
     foreach (['td', 'p', 'li', 'div', 'h1', 'h2', 'h3', 'ol', 'ul', 'body', 'head', 'html'] as $element) {
-      $content = preg_replace("|<\/".$element.">[\s\r\n]+<|", "</".$element."><", $content);
-      $content = preg_replace("|>[\s\r\n]+<".$element."|", "><".$element, $content);  
+      $content = preg_replace("|<\/".$element.">\s+<|", "</".$element."><", $content);
+      $content = preg_replace("|>\s+<".$element."|", "><".$element, $content);  
     }
-    $content = preg_replace("|-->[\s\r\n]+<|", "--><", $content);
-    $content = preg_replace("|>[\s\r\n]+<!--|", "><!--", $content);
+    $content = preg_replace("|-->\s+<|", "--><", $content);
+    $content = preg_replace("|>\s+<!--|", "><!--", $content);
     // Remove white-space after the body
-    $content = preg_replace("|<body>[\s\r\n]+|", "<body>", $content);
-      
-    // style
-    $css = array("main" => array());
-  
+    $content = preg_replace("|<body>\s+|", "<body>", $content);
+    
+    /**
+     * Get the style sheet(s), setup the font and color tables
+     */
+     
+    $css = ["main" => []];  
     foreach (["sites/all/modules/bookexportrtf/rtf.css"] as $css_file) {
       if (is_file($css_file)) {
         $css_parser = new CssParser();
@@ -148,8 +171,8 @@ class BookExportRTFController extends ControllerBase {
         }
       }  
     }
-      
-    // get the default font from body
+    
+    // set the default font
     if (array_key_exists("body", $this->bookexportrtf_css)) {
       if (array_key_exists("font-family", $this->bookexportrtf_css["body"])) {
         preg_match("|^([^,]+),?|", $this->bookexportrtf_css["body"]["font-family"], $r);
@@ -161,36 +184,32 @@ class BookExportRTFController extends ControllerBase {
   
     // declare the colortable but no need to set a default
     $this->bookexportrtf_colortbl = [];
-  
-    $tags = array_keys($css["main"]);
-  
+
+    /**
+     * Get the html object
+     */    
+
     $html = str_get_html($content);
+    
+    /**
+     * Set some of the books attributes
+     */        
     $toc = $html->find("h1");
     
-    $book_title = $toc[0]->innertext;
-    
-    
+    // The title of the book
+    $this->bookexportrtf_book_title = $toc[0]->innertext;
   
     /**
     * Start with the footer. This is done to grab the index tables.
     * Footer
     * - index
     */
-   
+    
     $footer = "";
-  
-    $footer .= "\r\n\\page\r\n\\sect\r\n";
-    $footer .= "{\\headerl\\pard\\ql {\b ".$book_title."}\\par}\r\n";
-    $footer .= "{\\headerr\\pard\\qr Index\\par}\r\n";
-    $footer .= "{\\footerr\\pard\\qr \\chpgn \\par}\r\n";
-    $footer .= "{\\footerl\\pard\\ql \\chpgn \\par}\r\n";
-    $footer .= "{\\pard " . $this->bookexportrtf_css2rtf($this->bookexportrtf_get_style($toc[0]));
-    $footer .= "{\\*\\bkmkstart chapterIndex}{\\*\\bkmkend chapterIndex}Index";
-    $footer .= "\\par}\r\n";
-    $footer .= "\\sect \\sbknone \\cols2\r\n";  
-  
+
+    // are there any index terms?
     $anchors = $html->find('a[name]');
-    $terms = array();
+    $terms = [];
     foreach ($anchors as $a) {
       $label = $a->name;
       if (preg_match("|^index|", $label)) {
@@ -199,42 +218,53 @@ class BookExportRTFController extends ControllerBase {
       }
     }
     sort($terms);
+    
+    if (count($terms) > 0) {
+      // setup the section
+      $footer .= "{\\headerl\\pard\\ql {\b ".$this->bookexportrtf_book_title."}\\par}\r\n";
+      $footer .= "{\\headerr\\pard\\qr Index\\par}\r\n";
+      $footer .= "{\\footerr\\pard\\qr \\chpgn \\par}\r\n";
+      $footer .= "{\\footerl\\pard\\ql \\chpgn \\par}\r\n";
+      $footer .= "{\\pard " . $this->bookexportrtf_css2rtf($this->bookexportrtf_get_style($toc[0]));
+      $footer .= "{\\*\\bkmkstart chapterIndex}{\\*\\bkmkend chapterIndex}Index";
+      $footer .= "\\par}\r\n";
+      $footer .= "\\sect \\sbknone \\cols2\r\n";  
   
-    $cur_initial = "";
+      $cur_initial = "";
   
-    $this->bookexpor_rtf_index_id = [];
-    $i = 0;
+      $this->bookexpor_rtf_index_id = [];
+      $i = 0;
   
-    foreach ($terms as $t) {
-      if (!isset($this->bookexpor_rtf_index_id[$t])) {
-        $this->bookexpor_rtf_index_id[$t] = $i;
-        $anchor = "index-" . $i ; 
-        $i++;
+      foreach ($terms as $t) {
+        if (!isset($this->bookexpor_rtf_index_id[$t])) {
+          $this->bookexpor_rtf_index_id[$t] = $i;
+          $anchor = "index-" . $i ; 
+          $i++;
   
-        $initial = substr($t, 0, 1);
-        if (is_numeric($initial)) {
-          $initial = "#";
-        }
-        if ($initial != $cur_initial) {
-          if ($cur_initial != "") {
-            $footer .= "\\par}\r\n";
+          $initial = substr($t, 0, 1);
+          if (is_numeric($initial)) {
+            $initial = "#";
           }
-          $footer .= "{\\pard\\fs28{\\b " . $initial . "\\b}\\par}\r\n";
-          $footer .= "{\\pard\\ql ";
-          $cur_initial = $initial;
+          if ($initial != $cur_initial) {
+            if ($cur_initial != "") {
+              $footer .= "\\par}\r\n";
+            }
+            $footer .= "{\\pard\\fs28{\\b " . $initial . "\\b}\\par}\r\n";
+            $footer .= "{\\pard\\ql ";
+            $cur_initial = $initial;
+          }
+          $footer .= $t . " {\\field{\*\\fldinst PAGEREF ".$anchor."}}\\line\r\n";
         }
-        $footer .= $t . " {\\field{\*\\fldinst PAGEREF ".$anchor."}}\\line\r\n";
       }
-    }
-    $footer .= "\\par}\r\n";
-  
-  
+      $footer .= "\\par}\r\n";
+    }  
+    
     /** 
     * Then get the content.
     * This is done second because the font table might be appended during the
     * conversion process.
     *
-    * The tough work is going to be done by bookrtf_traverse. 
+    * The tough work is going to be done by bookexportrtf_traverse. 
     */
   
     $elements = $html->find('html');
@@ -246,9 +276,9 @@ class BookExportRTFController extends ControllerBase {
     // strip all remaining tags
     $content = strip_tags($content);
     
-    
     /**
      * HEADER
+     * - RTF header
      * - Front page
      * - Flyleaf containing URL and date of download
      * - Table of contents
@@ -279,26 +309,20 @@ class BookExportRTFController extends ControllerBase {
     $header .= "\\plain\r\n";
     
     // front page
-    if (0) {
-      $this->bookexportrtf_firstpage = 0;
-      $bookrtf_front_page = ['value' => '<h3>'.$book_title.'</h3>', 'format' => 'full_html'];
+    if (1) {
+      $bookrtf_front_page = ['value' => '<h3>'.$this->bookexportrtf_book_title.'</h3>', 'format' => 'full_html'];
       $bookrtf_front_page["value"] = "<html><body><h3>" . $bookrtf_front_page["value"] . "</body></html>";
       $title_html = str_get_html($bookrtf_front_page["value"]);
       $elements = $title_html->find('html');
-      bookexportrtf_traverse($elements);
+      $this->bookexportrtf_traverse($elements);
       $title_html = strip_tags($title_html);
       $header .= $title_html;
     }
     // flyleaf  
-    if (0) {
-      if ($this->bookexportrtf_firstpage == 1) {
-        $this->bookexportrtf_firstpage = 0;
-      }
-      else {
-        $header .= "\\sect\\sftnrstpg\r\n";
-      }
+    if (1) {
+      $header .= "\\sect\\sftnrstpg\r\n";
       $header .= "{\\pard\\qc";
-      $header .= "{\\b " . $book_title . "}\\line\r\n";
+      $header .= "{\\b " . $this->bookexportrtf_book_title . "}\\line\r\n";
       if (isset($this->bookexportrtf_base_url)) {
         $header .= $this->bookexportrtf_base_url;
       }
@@ -308,18 +332,15 @@ class BookExportRTFController extends ControllerBase {
     }
   
     // table of contents
-    if (0) {
-      if ($this->bookexportrtf_firstpage == 1) {
-        $this->bookexportrtf_firstpage = 0;
-      }
-      else {
-        $header .= "\\sect\\sftnrstpg\r\n";
-      }
+    if (1) {
+      $header .= "\\sect\\sftnrstpg\r\n";
     
-      $header .= "{\\pard " .  bookexportrtf_css2rtf(bookexportrtf_get_style($toc[0])) . "Inhoud\r\n";
+      $header .= "{\\pard ";
+      $header .=  $this->bookexportrtf_css2rtf($this->bookexportrtf_get_style($toc[0])); $header .= "Inhoud\r\n";
       $header .= "\\par}\r\n{\\pard {";
         
-      // remove the first title as this should be the title of the book and does not belong in the toc.
+      // remove the first title as this should be the title of the book and
+      // does not belong in the toc.
       $book_title_element = array_shift($toc);
       $book_title_element->outertext = "";
       foreach ($toc as $e) {
@@ -330,8 +351,10 @@ class BookExportRTFController extends ControllerBase {
     
         $header .= "\\trowd";
         $header .= "\\cellx7000 \\cellx8309\r\n"; 
-        $header .= "\\intbl\\pard " .$title . "\\cell";
-        $header .= "\\qr{\\field{\*\\fldinst PAGEREF chapter".$chapter."}}\\cell\\row\r\n";
+        $header .= "\\intbl\\pard " . $title . "\\cell";
+        $header .= "\\qr{\\field{\*\\fldinst PAGEREF chapter";
+        $header .= $chapter;
+        $header .= "}}\\cell\\row\r\n";
       }
   
       $header .= "\\trowd";
@@ -339,14 +362,18 @@ class BookExportRTFController extends ControllerBase {
       $header .= "\\intbl\\pard Index\\cell";
       $header .= "\\qr{\\field{\*\\fldinst PAGEREF chapterIndex}}\\cell\\row\r\n";
       $header .= "}\\par}\r\n";
+      $header .= "\\sect\\sftnrstpg\r\n";
     }
 
-    // FINAL DOCUMENT
+    /**
+     * Make the final document
+     */ 
     $content = "{" . $header . "\r\n" . $content . "\r\n" . $footer . "}";
     
+    /**
+     * Encode special characters as RTF
+     */ 
     
-    
-    // SPECIAL CHARACTERS
     // extended ascii
     $content = preg_replace("|€|", "\'80", $content);
     // $content = preg_replace("|foo|", "\'81", $content);
@@ -494,15 +521,15 @@ class BookExportRTFController extends ControllerBase {
   /**
    * HTML parsers may not spawn demons but if you use them to replace HTML tags
    * by RTF code they do attract gremlins as the parser gets in trouble with
-   * nested tags (which occur a lot in HTML). Probably the parser is losing it's
-   * structure. This is solved by going through the tree and start replacing tags
-   * at the branches working up to the main stem.
+   * nested tags (which occur a lot in HTML). Probably the parser is losing
+   * the structure. This is solved by going through the tree and start
+   * replacing tags at the branches working up to the main stem.
    *
    * @param elements 
    *   the basic $elements from which to start
    */
  
-  function bookexportrtf_traverse($elements) {
+  private function bookexportrtf_traverse($elements) {
     foreach ($elements as $e) {
       if ($e->first_child()) {
         $children = $e->children();
@@ -529,16 +556,33 @@ class BookExportRTFController extends ControllerBase {
             }          
           }
           else if ($e->name) {
-           if (preg_match("|^index|", $e->name)) {
-             $label = substr($e->name, 5);
-             $anchor = "index-" . $this->bookexpor_rtf_index_id[$label]; 
-             $e->outertext = "{\\*\\bkmkstart ".$anchor."}{\\*\\bkmkend ".$anchor."}";
+            // replace anchors for the index, ignore others
+            if (preg_match("|^index|", $e->name)) {
+              $label = substr($e->name, 5);
+              $anchor = "index-" . $this->bookexpor_rtf_index_id[$label]; 
+              $e->outertext = "{\\*\\bkmkstart " . $anchor . "}{\\*\\bkmkend ".$anchor."}";
             }
           }
           break;
           
         case 'br':
+          // add a tab before the newline otherwise justified last lines will
+          // be justified while I want them left aligned.
           $e->outertext = "\\tab\\line\r\n";
+          break;
+
+       case 'div':
+         // for div's I'm only interested in page-break after
+         // other style elements will be enherited by its children
+          $css = $this->bookexportrtf_get_style($e);
+          if (array_key_exists('page-break-after', $css)) {
+            if (trim($css['page-break-after']) == "always") {
+              $e->outertext = $e->innertext . "\r\n\\sect\\sftnrstpg\r\n";
+            }
+            else {
+              $e->outertext = $e->innertext;
+            }
+          }
           break;
           
         case 'h1':
@@ -546,76 +590,10 @@ class BookExportRTFController extends ControllerBase {
           // title, bookmark for the table of contents
           $title = $e->innertext;
 
-          $rtf = "";
-          if ($this->bookexportrtf_firstpage == 1) {
-            $this->bookexportrtf_firstpage = 0;
-          }
-          else {
-            $rtf .= "\\sect\\sftnrstpg\r\n";
-          }
-          
-          // TODO skip the headers and footers for now
-          /*
-        
-          switch(variable_get('bookrtf_header_left', 0)) {
-            case 0:
-              break;
-              
-            case 1:
-              $rtf .= "{\\headerl\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".header-left"]) . variable_get('bookrtf_title', variable_get('site_name', "Default site name")) . "\\par}\r\n";
-              break;
-              
-            case 2:
-              $rtf .= "{\\headerl\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".header-left"]). $title . "\\par}\r\n";
-              break;
-              
-            case 3:  
-              $rtf .= "{\\headerl\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".header-left"])."\\chpgn \\par}\r\n";
-              break;
-              
-          }
-        
-        switch(variable_get('bookrtf_header_right', 0)) {
-          case 0:
-            break;
-          case 1:
-            $rtf .= "{\\headerr\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".header-right"]) . variable_get('bookrtf_title', variable_get('site_name', "Default site name")) . "\\par}\r\n";
-            break;
-          case 2:
-            $rtf .= "{\\headerr\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".header-right"]). $title . "\\par}\r\n";
-            break;
-          case 3:  
-            $rtf .= "{\\headerr\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".header-right"])."\\chpgn \\par}\r\n";
-            break;
-        }
-        
-        switch(variable_get('bookrtf_footer_left', 0)) {
-          case 0:
-            break;
-          case 1:
-            $rtf .= "{\\footerl\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".footer-left"]) . variable_get('bookrtf_title', variable_get('site_name', "Default site name")) . "\\par}\r\n";
-            break;
-          case 2:
-            $rtf .= "{\\footerl\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".footer-left"]). $title . "\\par}\r\n";
-            break;
-          case 3:  
-            $rtf .= "{\\footerl\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".footer-left"])."\\chpgn \\par}\r\n";
-            break;
-        }
-        
-        switch(variable_get('bookrtf_footer_right', 0)) {
-          case 0:
-            break;
-          case 1:
-            $rtf .= "{\\footerr\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".footer-right"]) . variable_get('bookrtf_title', variable_get('site_name', "Default site name")) . "\\par}\r\n";
-            break;
-          case 2:
-            $rtf .= "{\\footerr\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".footer-right"]). $title . "\\par}\r\n";
-            break;
-          case 3:  
-            $rtf .= "{\\footerr\\pard ".bookexportrtf_css2rtf($this->bookexportrtf_css[".footer-right"])."\\chpgn \\par}\r\n";
-            break;
-        }          */
+          $rtf = "{\\headerl\\pard ". $this->bookexportrtf_css2rtf($this->bookexportrtf_css[".header-left"]) . $this->bookexportrtf_book_title . "\\par}\r\n";
+          $rtf .= "{\\headerr\\pard ". $this->bookexportrtf_css2rtf($this->bookexportrtf_css[".header-right"]) . $title . "\\par}\r\n";
+          $rtf .= "{\\footerl\\pard ". $this->bookexportrtf_css2rtf($this->bookexportrtf_css[".footer-left"]) . "\\chpgn \\par}\r\n";
+          $rtf .= "{\\footerr\\pard ". $this->bookexportrtf_css2rtf($this->bookexportrtf_css[".footer-right"]) . "\\chpgn \\par}\r\n";
           
           // if the chapter starts with a number it should be in the index, add a bookmark for it
           if (preg_match("|^(\d+)\.\s|", $title, $match)) {
@@ -660,14 +638,21 @@ class BookExportRTFController extends ControllerBase {
           $ratio = $width/$height;
         
           // asume full page width A4 - margins = 11909 - 2x1800  = 8309 twips
+          // TODO, add some scaleability here
           $picwidth = 8309;
           $picheight = round($picwidth / $ratio);
           $scalex = 100;
           $scaley = 100;
 
-          $rtf = "{\\pard{\\pict\\picw".$width."\\pich".$height."\\picwgoal".$picwidth."\\pichgoal".$picheight."\\picscalex".$scalex."\\picscaley".$scaley;
+          $rtf = "{";
+          $rtf .= "\\pard{\\pict\\picw" . $width;
+          $rtf .= "\\pich" . $height;
+          $rtf .= "\\picwgoal" . $picwidth;
+          $rtf .= "\\pichgoal" . $picheight;
+          $rtf .= "\\picscalex" . $scalex;
+          $rtf .= "\\picscaley" . $scaley;
     
-          // set image type (jpg or png supported)
+          // set image type
           if (substr($url, -4) == ".png") {
             $rtf .= "\pngblip\r\n";
           }
@@ -691,7 +676,7 @@ class BookExportRTFController extends ControllerBase {
            * strip out the list-tags later.
            */
          
-          $level = 0;
+          $depth = 0;
           $type = "ul";
           $number = 1;
           $last = 1;
@@ -700,10 +685,10 @@ class BookExportRTFController extends ControllerBase {
           $p = $e->parent();
           while($p) {
             if ($p->tag == "ul" | $p->tag == "ol") {
-              if ($level == 0) {
+              if ($depth == 0) {
                 $type = $p->tag;
               }
-              $level++;
+              $depth++;
             }
             $p = $p->parent();
           }
@@ -729,13 +714,13 @@ class BookExportRTFController extends ControllerBase {
           // if the first item of a nested list close the current paragraph.
           // TODO: might want to check if the list is inside a paragraph and do
           // that anyway
-          if ($level > 1 & $number == 1) {
+          if ($depth > 1 & $number == 1) {
             $rtf .= "\\par}\r\n";
           }
           $rtf .= "{\\pard " . $this->bookexportrtf_css2rtf($this->bookexportrtf_get_style($e));
         
           $firstindent = -360;
-          $lineindent = 720 * $level;
+          $lineindent = 720 * $depth;
         
           $rtf .= "\\fi" . $firstindent . "\\li". $lineindent;
           if ($type == "ul") {
@@ -750,12 +735,13 @@ class BookExportRTFController extends ControllerBase {
           // TODO this will give trouble if there's tekst after the nested list.
           // This text will be included in the last item of the nested list at
           // the moment.        
-          if ($last != 1 | $level == 1) {
+          if ($last != 1 | $depth == 1) {
             $rtf .= "\\par}\r\n";
           }
-          if ($level == 1 & $last == 1) {
+          if ($depth == 1 & $last == 1) {
             // add some empty space after the list
-            // TODO this creates an empty line, would be nicer if I could make a configurable height.
+            // TODO this creates an empty line, would be nicer if I could make
+            // a configurable height.
             $rtf .= "\r\n{\\pard\\sa0\\par}\r\n"; 
           }
           $e->outertext = $rtf;
@@ -769,8 +755,6 @@ class BookExportRTFController extends ControllerBase {
           case 'del':
           case 'ins':
           case 'span':
-            $e->outertext = "{" . $this->bookexportrtf_css2rtf($this->bookexportrtf_get_style($e)) . $e->innertext . "}";
-            
             // remove the author information
             $class = $e->class;
             if ($class == "field field--name-title field--type-string field--label-hidden") {
@@ -784,6 +768,9 @@ class BookExportRTFController extends ControllerBase {
             elseif ($class == "field field--name-created field--type-created field--label-hidden") {
               // publication date
               $e->outertext = "";
+            }
+            else {
+              $e->outertext = "{" . $this->bookexportrtf_css2rtf($this->bookexportrtf_get_style($e)) . $e->innertext . "}";
             }
           break;
         
@@ -814,7 +801,7 @@ class BookExportRTFController extends ControllerBase {
           $num_rows = 0;
           $num_cols = 0;
           $table;
-          $colwidth = array();        
+          $colwidth = [];        
 
           // retrieve table contents and some required specifications
           $rows = $e->children();
@@ -861,7 +848,7 @@ class BookExportRTFController extends ControllerBase {
            * 2. Space out evenly over the remaining columns
            */
          
-          $colright = array();
+          $colright = [];
           $widthdefined = 0;
           $auto = 0;
           for ($col = 1; $col <= $num_cols; $col++) {
@@ -893,8 +880,13 @@ class BookExportRTFController extends ControllerBase {
             $rtf .= "\\trowd\r\n";
           
             foreach ($row as $cell) {
-                      // add the borders here
-              foreach (array("border-top", "border-right", "border-bottom", "border-left") as $border) {
+              /**
+               *TODO: why am I doing this here and not in css2rtf?
+               * Answer: because that function is there to style paragraphs
+               * not table cells.
+               */
+              // add the borders
+              foreach (["border-top", "border-right", "border-bottom", "border-left"] as $border) {
             
                 if (array_key_exists($border . "-width", $cell["style"])) {
                   $rtf .= "\\clbrdr" . substr($border, 7, 1);
@@ -983,9 +975,9 @@ class BookExportRTFController extends ControllerBase {
    *   an element from the html table
    */
 
-  function bookexportrtf_get_style($e) {
+  private function bookexportrtf_get_style($e) {
     // most of these aren't used
-    $css_inherit = array(
+    $css_inherit = [
       "border-collapse" => 1,
       "border-spacing" => 1,
       "caption-side" => 1,
@@ -1022,9 +1014,9 @@ class BookExportRTFController extends ControllerBase {
       "widows" => 1,
       "word-break" => 1,
       "word-spacing" => 1,
-      "word-wrap" => 1);
+      "word-wrap" => 1];
   
-    $css = array();
+    $css = [];
   
     $level = 0;
     
@@ -1071,17 +1063,19 @@ class BookExportRTFController extends ControllerBase {
       }
     
       # get css from the element class
-      $class = "." . $e->class;
-      if (array_key_exists($class, $this->bookexportrtf_css)) {
-        foreach (array_keys($this->bookexportrtf_css[$class]) as $property) {
-          // inheritance by default
-          if (!array_key_exists($property, $css) & ($level == 0 | array_key_exists($property, $css_inherit))) {
-            $css[$property] = $this->bookexportrtf_css[$class][$property];
-          }
-          // inheritance by setting
-          if (array_key_exists($property, $css)) {
-            if (trim($css[$property]) == "inherit") {
+      foreach (explode(" ", $e->class) as $class) {
+        $class = "." . $class;
+        if (array_key_exists($class, $this->bookexportrtf_css)) {
+          foreach (array_keys($this->bookexportrtf_css[$class]) as $property) {
+            // inheritance by default
+            if (!array_key_exists($property, $css) & ($level == 0 | array_key_exists($property, $css_inherit))) {
               $css[$property] = $this->bookexportrtf_css[$class][$property];
+            }
+            // inheritance by setting
+            if (array_key_exists($property, $css)) {
+              if (trim($css[$property]) == "inherit") {
+                $css[$property] = $this->bookexportrtf_css[$class][$property];
+              }
             }
           }
         }
@@ -1117,7 +1111,7 @@ class BookExportRTFController extends ControllerBase {
    *   an array of css key-value pairs
    */
 
-  function bookexportrtf_css2rtf($css) {
+  private function bookexportrtf_css2rtf($css) {
     if (!is_array($css)) {
       return "";
     }
@@ -1161,7 +1155,7 @@ class BookExportRTFController extends ControllerBase {
     if (array_key_exists("font-family", $css)) {
       // In css a family of fonts is given, if the first is not available the 
       // second is tried etc. RTF doesn't seem to support this so pick the first    
-      $r = array();
+      $r = [];
       preg_match("|^([^,]+),?|", $css["font-family"], $r);
       $font = trim($r[1]);
       $font = preg_replace("|\"|", "", $font);
@@ -1257,7 +1251,8 @@ class BookExportRTFController extends ControllerBase {
    * @param css 
    *   The value in CSS, this is a string with the value and unit
    */
-  function bookexportrtf_convert_color($css) {
+
+  private function bookexportrtf_convert_color($css) {
     $color = "";
     if (preg_match("|^rgb\((\d+),(\d+),(\d+)\)$|", trim($css) ,$r)) {
       $red = $r[1];
@@ -1276,7 +1271,7 @@ class BookExportRTFController extends ControllerBase {
       }
     }
     if (preg_match("|^\w+$|", trim($css))) {
-      $css_color_names = array(
+      $css_color_names = [
         "aliceblue" => "\\red240\\green248\\blue255",
         "antiquewhite" => "\\red250\\green235\\blue215",
         "aqua" => "\\red0\\green255\\blue255",
@@ -1424,7 +1419,7 @@ class BookExportRTFController extends ControllerBase {
         "white" => "\\red255\\green255\\blue255",
         "whitesmoke" => "\\red245\\green245\\blue245",
         "yellow" => "\\red255\\green255\\blue0",
-        "yellowgreen" => "\\red154\\green205\\blue50");
+        "yellowgreen" => "\\red154\\green205\\blue50"];
 
       $css = strtolower(trim($css));
       if (array_key_exists($css, $css_color_names)) {
@@ -1449,7 +1444,7 @@ class BookExportRTFController extends ControllerBase {
    *   The value in CSS, this is a string with the value and unit
    */
 
-  function bookexportrtf_convert_length($css) {
+  private function bookexportrtf_convert_length($css) {
     // check if css has the right format
     preg_match("|^(\d+\.?\d*)([a-zA-Z]+)$|", trim($css), $r);
     if (count($r) == 0) {
@@ -1459,22 +1454,22 @@ class BookExportRTFController extends ControllerBase {
     $css_unit = $r[2];
   
     // length
-    if ($css_unit == "cm") {
+    if ($css_unit == 'cm') {
       return round($css_value / 2.54 * 1440);
     }
-    if ($css_unit == "in") {
+    if ($css_unit == 'in') {
       return round($css_value * 1440);
     }
-    if ($css_unit == "mm") {
+    if ($css_unit == 'mm') {
       return round($css_value / 2.54 * 144);
     }
-    if ($css_unit == "pt") {
+    if ($css_unit == 'pt') {
       return round($css_value * 20);
     }
-    if ($css_unit == "px") {
+    if ($css_unit == 'px') {
       return round($css_value * 15);
     }
-    if ($css_unit == "pc") {
+    if ($css_unit == 'pc') {
       return round($css_value * 240);
     }
   
@@ -1488,7 +1483,7 @@ class BookExportRTFController extends ControllerBase {
    *   The value in CSS, this is a string with the value and unit
    */
 
-  function bookexportrtf_convert_font_size($css) {
+  private function bookexportrtf_convert_font_size($css) {
     // check if css has the right format
     preg_match("|^(\d+\.?\d*)([a-zA-Z]+)$|", trim($css), $r);
     if (count($r) == 0) {
@@ -1498,22 +1493,22 @@ class BookExportRTFController extends ControllerBase {
     $css_unit = $r[2];
 
     // font size
-    if ($css_unit == "cm") {
+    if ($css_unit == 'cm') {
       return round($css_value / 2.54 * 144);
     }
-    if ($css_unit == "in") {
+    if ($css_unit == 'in') {
       return round($css_value * 144);
     }
-    if ($css_unit == "mm") {
+    if ($css_unit == 'mm') {
       return  round($css_value / 2.54 * 14.4);
     }
-    if ($css_unit == "pt") {
+    if ($css_unit == 'pt') {
       return round($css_value * 2);
     } 
-    if ($css_unit == "px") {
+    if ($css_unit == 'px') {
       return round($css_value * 1.5);
     }
-    if ($css_unit == "pc") {
+    if ($css_unit == 'pc') {
       return round($css_value * 24);
     }
    
