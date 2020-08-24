@@ -1,0 +1,8 @@
+bookexportrtf.content:
+  path: '/book/exportrtf/{node}'
+  defaults:
+    _controller: '\Drupal\bookexportrtf\Controller\BookExportRtfController::content'
+    _title: 'Export'
+  requirements:
+    _permission: 'access content'
+    node: \d+
