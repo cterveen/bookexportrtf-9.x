@@ -32,6 +32,7 @@ include_once('sites/all/libraries/simple_html_dom/simple_html_dom.php');
  * get it here: https://github.com/Schepp/CSS-Parser
  * save it to: sites/all/libraries/schepp-css-parser/
  */ 
+
 include_once('sites/all/libraries/schepp-css-parser/parser.php');
 
 
@@ -221,11 +222,14 @@ class BookExportRTFController extends ControllerBase {
 
     if (count($terms) > 0) {
       // setup the section
+
+      $style = $this->bookexportrtf_get_rtf_style_from_element($toc[0]);
+
+      $footer .= $style[0];
       $footer .= "{\\headerl\\pard\\ql {\b ".$this->bookexportrtf_book_title."}\\par}\r\n";
       $footer .= "{\\headerr\\pard\\qr Index\\par}\r\n";
       $footer .= "{\\footerr\\pard\\qr \\chpgn \\par}\r\n";
       $footer .= "{\\footerl\\pard\\ql \\chpgn \\par}\r\n";
-      $style = $this->bookexportrtf_get_rtf_style_from_element($toc[0]);
       $footer .= "{\\pard " . $style[1];
       $footer .= "{\\*\\bkmkstart chapterIndex}{\\*\\bkmkend chapterIndex}Index";
       $footer .= "\\par}\r\n";
@@ -258,6 +262,7 @@ class BookExportRTFController extends ControllerBase {
         }
       }
       $footer .= "\\par}\r\n";
+      $footer .= $style[2];
     }
 
     /** 
@@ -365,13 +370,12 @@ class BookExportRTFController extends ControllerBase {
       $header .= "\\intbl\\pard Index\\cell";
       $header .= "\\qr{\\field{\*\\fldinst PAGEREF chapterIndex}}\\cell\\row\r\n";
       $header .= "}\\par}\r\n";
-      $header .= "\\sect\\sftnrstpg\r\n";
     }
 
     /**
      * Make the final document
      */
-    $content = "{" . $header . "\r\n" . $content . "\r\n" . $footer . "}";
+    $content = wordwrap("{" . $header . $content . $footer . "}", 80, "\r\n", TRUE);
 
     /**
      * Encode special characters as RTF
@@ -749,7 +753,7 @@ class BookExportRTFController extends ControllerBase {
             // add some empty space after the list
             // TODO this creates an empty line, would be nicer if I could make
             // a configurable height.
-            $rtf .= "\r\n{\\pard\\sa0\\par}\r\n"; 
+            $rtf .= "{\\pard\\sa0\\par}\r\n"; 
           }
           $e->outertext = $rtf;
           break;
@@ -979,14 +983,13 @@ class BookExportRTFController extends ControllerBase {
   }
 
   /**
-   * Get the appropriate style for an HTML element and return string of rtf style
-   * commands.
+   * Get the style for an HTML element
    *
    * @param e 
    *   an element from the html table
    *
    * @return array
-   *   an array containing all css elements relevant for element e 
+   *   an array containing all relevant css properties
    */
 
   private function bookexportrtf_get_css_style_from_element($e) {
@@ -1128,12 +1131,10 @@ class BookExportRTFController extends ControllerBase {
    *
    * @return array
    *   an array with the prefix, internal and suffix RTF markup
-   */  
+   */
 
   private function bookexportrtf_get_rtf_style_from_element($e) {
-    $css = $this->bookexportrtf_get_css_style_from_element($e);
-    // some space here to check whether properties apply
-    return $this->bookexportrtf_css2rtf($css);
+    return $this->bookexportrtf_css2rtf($this->bookexportrtf_get_css_style_from_element($e));
   }
   
   /**
@@ -1144,10 +1145,10 @@ class BookExportRTFController extends ControllerBase {
    *
    * @return array
    *   an array with the prefix, internal and suffix RTF markup
-   */  
+   */
 
   private function bookexportrtf_get_rtf_style_from_selector($selector) {
-    return $this->bookexportrtf_css2rtf($this->bookexportrtf_css[$selector]);  
+    return $this->bookexportrtf_css2rtf($this->bookexportrtf_css[$selector]);
   }
   
   /**
@@ -1293,24 +1294,24 @@ class BookExportRTFController extends ControllerBase {
     }
     if (array_key_exists('page-break-before', $css)) {
       if (trim($css['page-break-before']) == "always") {
-          $rtf_prefix .= "\sect\\sftnrstpg";
+          $rtf_prefix .= "\\sect\\sftnrstpg";
        }
     }
     if (array_key_exists('page-break-after', $css)) {
       if (trim($css['page-break-after']) == "always") {
-          $rtf_suffix .= "\sect\\sftnrstpg";
+          $rtf_suffix .= "\\sect\\sftnrstpg";
        }
     }
 
     // add a white space or newlines to prevent mixup with text
     if (strlen($rtf_prefix) > 0) {
-      $rtf_prefix = "\r\n" . $rtf_prefix . "\r\n";
+      $rtf_prefix .= "\r\n";
     }
     if (strlen($rtf_infix) > 0) {
       $rtf_infix .= " ";
     }
     if (strlen($rtf_suffix) > 0) {
-      $rtf_suffix = "\r\n" . $rtf_suffix . "\r\n";
+      $rtf_suffix .= "\r\n";
     }
     return [$rtf_prefix, $rtf_infix, $rtf_suffix];
   }
@@ -1320,6 +1321,10 @@ class BookExportRTFController extends ControllerBase {
    *
    * @param css 
    *   The value in CSS, this is a string with the value and unit
+   *
+   * @return string
+   *   a string containing the RTF code of the provided color or the default
+   *   color on error
    */
 
   private function bookexportrtf_convert_color($css) {
@@ -1332,7 +1337,7 @@ class BookExportRTFController extends ControllerBase {
         $color = "\\red" . $red . "\\green" . $green . "\\blue" . $blue;
       }
     }
-    if (preg_match("|^\#([0-9a-fA-F]{2}){3}$|", trim($css), $r)) {
+    if (preg_match("|^\#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$|", trim($css), $r)) {
       $red = hexdec($r[1]);
       $green = hexdec($r[2]);
       $blue = hexdec($r[3]);
