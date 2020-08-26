@@ -19,6 +19,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * get it here: https://simplehtmldom.sourceforge.io/
  * save it to: sites/all/libraries/simle_html_dom/
+ * (only needs simple_html_dom.php)
  */
 
 include_once('sites/all/libraries/simple_html_dom/simple_html_dom.php');
@@ -31,15 +32,16 @@ include_once('sites/all/libraries/simple_html_dom/simple_html_dom.php');
  *
  * get it here: https://github.com/Schepp/CSS-Parser
  * save it to: sites/all/libraries/schepp-css-parser/
+ * (only needs parser.php)
  */ 
 
 include_once('sites/all/libraries/schepp-css-parser/parser.php');
 
 
 /**
- * Defines BookIndexController class.
+ * Defines BookExportRtfController class.
  */
-class BookExportRTFController extends ControllerBase {
+class BookExportRtfController extends ControllerBase {
 
   /**
    * The book export service.
@@ -56,7 +58,7 @@ class BookExportRTFController extends ControllerBase {
   protected $renderer;
 
   /**
-   * Constructs a BookIndexController object.
+   * Constructs a BookExportRTfController object.
    *
    * @param \Drupal\book\BookExport $bookExport
    *   The book export service.
@@ -375,7 +377,8 @@ class BookExportRTFController extends ControllerBase {
     /**
      * Make the final document
      */
-    $content = wordwrap("{" . $header . $content . $footer . "}", 80, "\r\n", TRUE);
+    $content = "{" . $header . $content . $footer . "}";
+    // $content = wordwrap("{" . $header . $content . $footer . "}", 81, " \r\n", TRUE);
 
     /**
      * Encode special characters as RTF
@@ -892,67 +895,16 @@ class BookExportRTFController extends ControllerBase {
           foreach ($table as $row) {
             $rtf .= "\\trowd\r\n";
 
+            // first itteration to define cell style
             foreach ($row as $cell) {
-              /**
-               *TODO: why am I doing this here and not in css2rtf?
-               * Answer: because that function is there to style paragraphs
-               * not table cells.
-               */
-
-              // add the borders
-              foreach (["border-top", "border-right", "border-bottom", "border-left"] as $border) {
-
-                if (array_key_exists($border . "-width", $cell["style"])) {
-                  $rtf .= "\\clbrdr" . substr($border, 7, 1);
-                  $rtf .= "\\brdrw" . $this->bookexportrtf_convert_length($cell["style"][$border . "-width"]);
-                  if (array_key_exists($border . "-style", $cell["style"])) {
-                    switch(trim($cell["style"][$border . "-style"])) {
-                      case "dotted":
-                        $rtf .= "\\brdrdot ";
-                        break;
-
-                      case "dashed":
-                        $rtf .= "\\brdrdash ";
-                        break;
-
-                      case "double":
-                        $rtf .= "\\brdrdb ";
-                        break;
-
-                      case "hidden":
-                      case "none":
-                        $rtf .= "\\brdrnone ";
-                        break;
-
-                      default:
-                        $rtf .= "\\brdrs ";
-                        break;
-                    }
-                  }
-                  else {
-                    $rtf .= "\\brdrs ";
-                  }
-                }
-              }
-
-              if (array_key_exists("vertical-align", $cell["style"])) {
-                switch (trim($cell["style"]["vertical-align"])) {
-                  case "top":
-                    $rtf .= "\\clvertalt";
-                    break;
-                  case "middle":
-                    $rtf .= "\\clvertalc";
-                    break;
-                  case "bottom":
-                    $rtf .= "\\clvertalb";
-                    break;
-                }
-              }
-
+              $style = $this->bookexportrtf_css2rtf($cell["style"]);
+              $rtf .= $style[0];
               $rtf .= "\\cellx";
               $rtf .= $colright[$cell['col']+$cell['colspan']-1];
               $rtf .= "\r\n";
             }
+
+            // second iteration to make the cells themselves
             foreach ($row as $cell) {
               $style = $this->bookexportrtf_css2rtf($cell["style"]);
               $rtf .= "\\intbl{" . $style[1] . $cell['innertext'] . "}\\cell\r\n";
@@ -1036,7 +988,7 @@ class BookExportRTFController extends ControllerBase {
 
     $css = [];
 
-    $level = 0;
+    $depth = 0;
 
     // start the cascade
     while ($e) {
@@ -1051,7 +1003,7 @@ class BookExportRTFController extends ControllerBase {
 
         foreach (array_keys($my_css['main']['.attribute']) as $property) {
           // inheritance by default
-          if (!array_key_exists($property, $css) & ($level == 0 | array_key_exists($property, $css_inherit))) {
+          if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
             $css[$property] = $my_css['main']['.attribute'][$property];
           }
           // inheritance by setting
@@ -1068,7 +1020,7 @@ class BookExportRTFController extends ControllerBase {
       if (array_key_exists($id, $this->bookexportrtf_css)) {
         foreach (array_keys($this->bookexportrtf_css[$id]) as $property) {
           // inheritance by default
-          if (!array_key_exists($property, $css) & ($level == 0 | array_key_exists($property, $css_inherit))) {
+          if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
             $css[$property] = $this->bookexportrtf_css[$id][$property];
           }
           // inheritance by setting
@@ -1086,7 +1038,7 @@ class BookExportRTFController extends ControllerBase {
         if (array_key_exists($class, $this->bookexportrtf_css)) {
           foreach (array_keys($this->bookexportrtf_css[$class]) as $property) {
             // inheritance by default
-            if (!array_key_exists($property, $css) & ($level == 0 | array_key_exists($property, $css_inherit))) {
+            if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
               $css[$property] = $this->bookexportrtf_css[$class][$property];
             }
             // inheritance by setting
@@ -1104,7 +1056,7 @@ class BookExportRTFController extends ControllerBase {
       if (array_key_exists($tag, $this->bookexportrtf_css)) {
         foreach (array_keys($this->bookexportrtf_css[$tag]) as $property) {
           // inheritance by default
-          if (!array_key_exists($property, $css) & ($level == 0 | array_key_exists($property, $css_inherit))) {
+          if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
             $css[$property] = $this->bookexportrtf_css[$tag][$property];
           }
           // inheritance by setting
@@ -1116,7 +1068,7 @@ class BookExportRTFController extends ControllerBase {
         }
       }  
       $e = $e->parent();
-      $level++;
+      $depth--;
     }
 
     return $css;
@@ -1292,6 +1244,8 @@ class BookExportRTFController extends ControllerBase {
     if (array_key_exists('text-decoration-color', $css)) {
       $rtf_infix .= "\\ulc" . $this->bookexportrtf_convert_color($css['text-decoration-color']);
     }
+
+    // Page breaks
     if (array_key_exists('page-break-before', $css)) {
       if (trim($css['page-break-before']) == "always") {
           $rtf_prefix .= "\\sect\\sftnrstpg";
@@ -1301,6 +1255,56 @@ class BookExportRTFController extends ControllerBase {
       if (trim($css['page-break-after']) == "always") {
           $rtf_suffix .= "\\sect\\sftnrstpg";
        }
+    }
+
+    // tables
+    foreach (["border-top", "border-right", "border-bottom", "border-left"] as $border) {
+      if (array_key_exists($border . "-width", $css)) {
+        $rtf_prefix .= "\\clbrdr" . substr($border, 7, 1);
+        $rtf_prefix .= "\\brdrw" . $this->bookexportrtf_convert_length($css[$border . "-width"]);
+        if (array_key_exists($border . "-style", $css)) {
+          switch(trim($css[$border . "-style"])) {
+            case "dotted":
+              $rtf_prefix .= "\\brdrdot ";
+              break;
+
+            case "dashed":
+              $rtf_prefix .= "\\brdrdash ";
+              break;
+
+            case "double":
+              $rtf_prefix .= "\\brdrdb ";
+              break;
+
+            case "hidden":
+            case "none":
+              $rtf_prefix .= "\\brdrnone ";
+              break;
+
+            default:
+              $rtf_prefix .= "\\brdrs ";
+              break;
+          }
+        }
+        else {
+          $rtf_prefix .= "\\brdrs ";
+        }
+      }
+    }
+    if (array_key_exists("vertical-align", $css)) {
+      switch (trim($css["vertical-align"])) {
+      case "top":
+        $rtf_prefix .= "\\clvertalt";
+        break;
+
+      case "middle":
+        $rtf_prefix .= "\\clvertalc";
+        break;
+
+      case "bottom":
+        $rtf_prefix .= "\\clvertalb";
+        break;
+      }
     }
 
     // add a white space or newlines to prevent mixup with text
