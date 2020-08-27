@@ -11,11 +11,8 @@ use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
+/*
  * Load Simple HTML DOM
- *
- * TODO: This library should probably be included using composer but it's too
- * much for now to get all that up and running so do it the old fashioned way.
  *
  * get it here: https://simplehtmldom.sourceforge.io/
  * save it to: sites/all/libraries/simle_html_dom/
@@ -24,11 +21,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 include_once('sites/all/libraries/simple_html_dom/simple_html_dom.php');
 
- /**
+/*
  * Load the css parser if not done yet
- *
- * TODO: This library should probably be included using composer but it's too
- * much for now to get all that up and running so do it the old fashioned way.
  *
  * get it here: https://github.com/Schepp/CSS-Parser
  * save it to: sites/all/libraries/schepp-css-parser/
@@ -37,6 +31,11 @@ include_once('sites/all/libraries/simple_html_dom/simple_html_dom.php');
 
 include_once('sites/all/libraries/schepp-css-parser/parser.php');
 
+/**
+ * @todo These libraries should probably be included using composer but it's
+ * too much for now to get all that up and running so do it the old fashioned
+ * way.
+ */
 
 /**
  * Defines BookExportRtfController class.
@@ -85,7 +84,7 @@ class BookExportRtfController extends ControllerBase {
   }
 
   /**
-   * Generates an index of a book page and its children.
+   * Converts a book or book page to RTF and shows a download link.
    *
    * @param \Drupal\node\NodeInterface $node
    *   The node to export.
@@ -106,11 +105,14 @@ class BookExportRtfController extends ControllerBase {
     $rtf = $this->bookexportrtf_convert($node);
 
     /** 
-      * TODO: this code creates a nice download but generates errors on the next visited page
-      * header("Content-Type: application/rtf");
-      * header("Content-Disposition: inline; filename=\"gele-boekje.rtf\"");
-      * echo $rtf;
-      */
+     * @todo: The code below creates a direct download of the rtf file but
+     * generates an error on the next visited page. Find out why and how to fix
+     * this.
+     *
+     * header("Content-Type: application/rtf");
+     * header("Content-Disposition: inline; filename=\"gele-boekje.rtf\"");
+     * echo $rtf;
+     */
     file_put_contents("sites/default/files/gele-boekje.rtf", $rtf);
 
     return [
@@ -125,8 +127,8 @@ class BookExportRtfController extends ControllerBase {
    * @param \Drupal\node\NodeInterface $node
    *   The node to export.
    *
-   * @return variable
-   *   Return the book in RTF format
+   * @return string
+   *   Return the book in RTF format.
    */
 
   private function bookexportrtf_convert(NodeInterface $node) {
@@ -134,7 +136,7 @@ class BookExportRtfController extends ControllerBase {
     $exported_book = $this->bookExport->bookExportHtml($node);
     $content = new Response($this->renderer->renderRoot($exported_book));
 
-    /**
+    /*
      * Prepare the HTML for processing  
      */
 
@@ -155,8 +157,19 @@ class BookExportRtfController extends ControllerBase {
     // Remove white-space after the body
     $content = preg_replace("|<body>\s+|", "<body>", $content);
 
+    // Create the HTML object
+    $html = str_get_html($content);
+
     /**
-     * Get the style sheet(s), setup the font and color tables
+     * Set some of the books attributes.
+     */
+
+    // The title of the book
+    $toc = $html->find("h1");
+    $this->bookexportrtf_book_title = $toc[0]->innertext;
+
+    /*
+     * Get the style sheet(s), setup the font and color tables.
      */
 
     $css = ["main" => []];  
@@ -188,21 +201,7 @@ class BookExportRtfController extends ControllerBase {
     // declare the colortable but no need to set a default
     $this->bookexportrtf_colortbl = [];
 
-    /**
-     * Get the html object
-     */
-
-    $html = str_get_html($content);
-
-    /**
-     * Set some of the books attributes
-     */
-    $toc = $html->find("h1");
-
-    // The title of the book
-    $this->bookexportrtf_book_title = $toc[0]->innertext;
-
-    /**
+    /*
     * Start with the footer. This is done to grab the index tables.
     * Footer
     * - index
@@ -267,7 +266,7 @@ class BookExportRtfController extends ControllerBase {
       $footer .= $style[2];
     }
 
-    /** 
+    /* 
     * Then get the content.
     * This is done second because the font table might be appended during the
     * conversion process.
@@ -278,13 +277,10 @@ class BookExportRtfController extends ControllerBase {
     $elements = $html->find('html');
     $this->bookexportrtf_traverse($elements);
 
-    // dumb the new code back to $content
-    $content = $html;  
+    // dumb the new code back to $content and strip tags
+    $content = strip_tags($html);
 
-    // strip all remaining tags
-    $content = strip_tags($content);
-
-    /**
+    /*
      * HEADER
      * - RTF header
      * - Front page
@@ -374,14 +370,13 @@ class BookExportRtfController extends ControllerBase {
       $header .= "}\\par}\r\n";
     }
 
-    /**
-     * Make the final document
+    /*
+     * Make the final document.
      */
     $content = "{" . $header . $content . $footer . "}";
-    // $content = wordwrap("{" . $header . $content . $footer . "}", 81, " \r\n", TRUE);
 
-    /**
-     * Encode special characters as RTF
+    /*
+     * Encode special characters as RTF.
      */
 
     // extended ascii
@@ -529,14 +524,17 @@ class BookExportRtfController extends ControllerBase {
   }
 
   /**
+   * Traverse the HTML tree and change HTML into RTF.
+   *
    * HTML parsers may not spawn demons but if you use them to replace HTML tags
    * by RTF code they do attract gremlins as the parser gets in trouble with
    * nested tags (which occur a lot in HTML). Probably the parser is losing
    * the structure. This is solved by going through the tree and start
    * replacing tags at the branches working up to the main stem.
    *
-   * @param elements 
-   *   the basic $elements from which to start
+   * @param array $elements 
+   *   The elements from the HTML tree from which to start. This would be the
+   *   html element.
    */
  
   private function bookexportrtf_traverse($elements) {
@@ -682,7 +680,7 @@ class BookExportRtfController extends ControllerBase {
           break;
 
         case 'li':
-          /**
+          /*
            * This might be a bit dirty but as I'm not going to make elaborate
            * list structures I feel confident working from li backwards and
            * strip out the list-tags later.
@@ -723,13 +721,17 @@ class BookExportRtfController extends ControllerBase {
           }
 
           $rtf = "";
-          // if the first item of a nested list close the current paragraph.
-          // TODO: might want to check if the list is inside a paragraph and do
-          // that anyway
+          // If the first item of a nested list close the current paragraph.
+
+          /**
+           * @todo Might want to check if the list is inside a paragraph and do
+           * that anyway.
+           */
+
           if ($depth > 1 & $number == 1) {
             $rtf .= "\\par}\r\n";
           }
-          
+
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $rtf .= "{\\pard " . $style[1];
 
@@ -745,17 +747,27 @@ class BookExportRtfController extends ControllerBase {
           }
           $rtf .= $e->innertext;
 
-          // finish the paragraph unless it's the last item in a nested list
-          // TODO this will give trouble if there's tekst after the nested list.
-          // This text will be included in the last item of the nested list at
-          // the moment.
+          // Finish the paragraph unless it's the last item in a nested list
+
+          /**
+           * @todo Text after the nested list will be included in the last item
+           * of the nested list. That should not be the case.
+           */
+
           if ($last != 1 | $depth == 1) {
             $rtf .= "\\par}\r\n";
           }
           if ($depth == 1 & $last == 1) {
             // add some empty space after the list
-            // TODO this creates an empty line, would be nicer if I could make
-            // a configurable height.
+ 
+            /**
+             * @todo This creates an empty line, would be nicer if I could make
+             * this a configurable height just like paragraphs. The reason this
+             * isn't done is that the last list item might contain a nested
+             * list in which case the whitespace is added before the nested
+             * list.
+             */
+
             $rtf .= "{\\pard\\sa0\\par}\r\n"; 
           }
           $e->outertext = $rtf;
@@ -808,7 +820,7 @@ class BookExportRtfController extends ControllerBase {
           break;
 
         case 'tbody':
-          /**
+          /*
            * Tables are a little bit more complicated than lists. I do not feel
            * confident working backwards from cells. Better to store the whole
            * table and than put it down again.
@@ -844,7 +856,12 @@ class BookExportRtfController extends ControllerBase {
               }
 
               $css = $this->bookexportrtf_get_css_style_from_element($c);
+              $style = $this->bookexportrtf_css2rtf($css);
+
               $table[$num_rows][$cur_cols]['style'] = $css;
+              $table[$num_rows][$cur_cols]['style_prefix'] = $style[0];
+              $table[$num_rows][$cur_cols]['style_infix'] = $style[1];
+
 
               if (array_key_exists("width", $css)) {
                 $colwidth[$cur_cols] = $this->bookexportrtf_convert_length($css["width"]);
@@ -858,7 +875,7 @@ class BookExportRtfController extends ControllerBase {
             }
           }
 
-          /**
+          /*
            * Calculate column width
            * 1. Determined width already defined
            * 2. Space out evenly over the remaining columns
@@ -897,8 +914,7 @@ class BookExportRtfController extends ControllerBase {
 
             // first itteration to define cell style
             foreach ($row as $cell) {
-              $style = $this->bookexportrtf_css2rtf($cell["style"]);
-              $rtf .= $style[0];
+              $rtf .= $cell['style_prefix'];
               $rtf .= "\\cellx";
               $rtf .= $colright[$cell['col']+$cell['colspan']-1];
               $rtf .= "\r\n";
@@ -906,8 +922,10 @@ class BookExportRtfController extends ControllerBase {
 
             // second iteration to make the cells themselves
             foreach ($row as $cell) {
-              $style = $this->bookexportrtf_css2rtf($cell["style"]);
-              $rtf .= "\\intbl{" . $style[1] . $cell['innertext'] . "}\\cell\r\n";
+              $rtf .= "\\intbl{";
+              $rtf .= $cell['style_infix'];
+              $rtf .= $cell['innertext'];
+              $rtf .= "}\\cell\r\n";
             }
             $rtf .= "\\row\r\n";
           }
@@ -929,24 +947,23 @@ class BookExportRtfController extends ControllerBase {
           }
           $style = $this->bookexportrtf_css2rtf($css);
           $e->outertext = "{" . $style[1] . $e->innertext . "}";
-          break;
       }
     }
   }
 
   /**
-   * Get the style for an HTML element
+   * Get the style for an HTML element.
    *
-   * @param e 
-   *   an element from the html table
+   * @param object $e 
+   *   An element from the html tree.
    *
    * @return array
-   *   an array containing all relevant css properties
+   *   The list of css properties and values.
    */
 
   private function bookexportrtf_get_css_style_from_element($e) {
-    // a list of inhereted css properties
-    // most of these aren't used but keep them in
+    // A list of inhereted css properties.
+    // Most of these aren't used but keep them in for completeness.
     $css_inherit = [
       'border-collapse' => 1,
       'border-spacing' => 1,
@@ -992,7 +1009,7 @@ class BookExportRtfController extends ControllerBase {
 
     // start the cascade
     while ($e) {
-      // get css from the element attribute
+      // Get css from the element's style attribute.
       $style = $e->style;
       if ($style != '') {
         $style = ".attribute {" . $style . " }";
@@ -1015,58 +1032,31 @@ class BookExportRtfController extends ControllerBase {
         }
       }
 
-      # get css from the element id
+      // Get css associated with the element's id, classes and element.
       $id = '#' . $e->id;
-      if (array_key_exists($id, $this->bookexportrtf_css)) {
-        foreach (array_keys($this->bookexportrtf_css[$id]) as $property) {
-          // inheritance by default
-          if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
-            $css[$property] = $this->bookexportrtf_css[$id][$property];
-          }
-          // inheritance by setting
-          if (array_key_exists($property, $css)) {
-            if (trim($css[$property]) == 'inherit') {
-              $css[$property] = $this->bookexportrtf_css[$id][$property];
-            }
-          }
-        }
-      }
+      $classes = explode(' ', $e->class);
+      $classes = array_map(static function ($class) {
+            return "." . $class;
+        }, $classes);
+      $tag = $e->tag;
 
-      # get css from the element class
-      foreach (explode(' ', $e->class) as $class) {
-        $class = "." . $class;
-        if (array_key_exists($class, $this->bookexportrtf_css)) {
-          foreach (array_keys($this->bookexportrtf_css[$class]) as $property) {
+      foreach (array_merge([$id], $classes, [$tag]) as $selector) {
+        if (array_key_exists($selector, $this->bookexportrtf_css)) {
+          foreach (array_keys($this->bookexportrtf_css[$selector]) as $property) {
             // inheritance by default
             if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
-              $css[$property] = $this->bookexportrtf_css[$class][$property];
+              $css[$property] = $this->bookexportrtf_css[$selector][$property];
             }
             // inheritance by setting
             if (array_key_exists($property, $css)) {
               if (trim($css[$property]) == 'inherit') {
-                $css[$property] = $this->bookexportrtf_css[$class][$property];
+                $css[$property] = $this->bookexportrtf_css[$selector][$property];
               }
             }
           }
         }
       }
-
-      # get css associated with the element
-      $tag = $e->tag;
-      if (array_key_exists($tag, $this->bookexportrtf_css)) {
-        foreach (array_keys($this->bookexportrtf_css[$tag]) as $property) {
-          // inheritance by default
-          if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
-            $css[$property] = $this->bookexportrtf_css[$tag][$property];
-          }
-          // inheritance by setting
-          if (array_key_exists($property, $css)) {
-            if (trim($css[$property]) == 'inherit') {
-              $css[$property] = $this->bookexportrtf_css[$tag][$property];
-            }
-          }
-        }
-      }  
+      
       $e = $e->parent();
       $depth--;
     }
@@ -1076,13 +1066,13 @@ class BookExportRtfController extends ControllerBase {
 
 
   /**
-   * Retrieve the RTF markup from an HTML element
+   * Retrieve the RTF markup from an HTML element.
    *
-   * @param e 
-   *   a HTML element
+   * @param object $e 
+   *   An HTML element
    *
    * @return array
-   *   an array with the prefix, internal and suffix RTF markup
+   *   The RTF markup as prefix, infix and suffix.
    */
 
   private function bookexportrtf_get_rtf_style_from_element($e) {
@@ -1090,13 +1080,13 @@ class BookExportRtfController extends ControllerBase {
   }
   
   /**
-   * Retrieve the RTF markup from an CSS selector
+   * Retrieve the RTF markup from an CSS selector.
    *
-   * @param selector 
-   *   a CSS selector
+   * @param string $selector 
+   *   The CSS selector.
    *
    * @return array
-   *   an array with the prefix, internal and suffix RTF markup
+   *   The RTF markup as prefix, infix and suffix.
    */
 
   private function bookexportrtf_get_rtf_style_from_selector($selector) {
@@ -1104,13 +1094,13 @@ class BookExportRtfController extends ControllerBase {
   }
   
   /**
-   * Convert a CSS-array into the appropriate rtf style elements
+   * Convert a CSS-array into the appropriate RTF markup.
    *
-   * @param css 
-   *   an array of css key-value pairs
+   * @param array $css 
+   *   The css property-value pairs.
    *
    * @return array
-   *   an array with the prefix, internal and suffix RTF markup
+   *   The RTF markup as prefix, infix and suffix.
    */
 
   private function bookexportrtf_css2rtf($css) {
@@ -1118,12 +1108,12 @@ class BookExportRtfController extends ControllerBase {
       return "";
     }
 
-    // RTF can hold style elements before, within and after the blocks
+    // RTF can hold style elements before, within and after blocks.
     $rtf_prefix = "";
     $rtf_infix = "";
     $rtf_suffix = "";
   
-    // use a bunch of if statements rather than switch to group tags
+    // Use if statements rather than switch to group tags.
     if (array_key_exists('margin-top', $css)) {
       $rtf_infix .= "\\sb" . $this->bookexportrtf_convert_length($css['margin-top']);
     }
@@ -1153,16 +1143,13 @@ class BookExportRtfController extends ControllerBase {
 
         case 'right':
           $rtf_infix .= "\\qr";
-          break;
-
       }
     }
     if (array_key_exists('font-family', $css)) {
-      // In css a family of fonts is given, if the first is not available the 
-      // second is tried etc. RTF doesn't seem to support this so pick the first
-      $r = [];
-      preg_match("|^([^,]+),?|", $css['font-family'], $r);
-      $font = trim($r[1]);
+      // In CSS a family of fonts is given, if the first is not available the 
+      // second is tried etc. RTF doesn't support this so pick the first.
+      $r = explode(",", $css['font-family']);
+      $font = trim($r[0]);
       $font = preg_replace("|\"|", "", $font);
 
       if (!array_key_exists($font, $this->bookexportrtf_fonttbl)) {
@@ -1182,7 +1169,6 @@ class BookExportRtfController extends ControllerBase {
           break;
 
         case 'normal':
-          break;
       }
     }
     if (array_key_exists('color', $css)) {
@@ -1227,7 +1213,6 @@ class BookExportRtfController extends ControllerBase {
 
                 default:
                   $rtf_infix .= "\\ul";
-                  break;
               }
             }
             else {
@@ -1237,7 +1222,6 @@ class BookExportRtfController extends ControllerBase {
 
           case 'none':
             $rtf_infix .= "";
-            break;
         }
       }
     }
@@ -1257,7 +1241,7 @@ class BookExportRtfController extends ControllerBase {
        }
     }
 
-    // tables
+    // Tables
     foreach (["border-top", "border-right", "border-bottom", "border-left"] as $border) {
       if (array_key_exists($border . "-width", $css)) {
         $rtf_prefix .= "\\clbrdr" . substr($border, 7, 1);
@@ -1283,7 +1267,6 @@ class BookExportRtfController extends ControllerBase {
 
             default:
               $rtf_prefix .= "\\brdrs ";
-              break;
           }
         }
         else {
@@ -1303,11 +1286,10 @@ class BookExportRtfController extends ControllerBase {
 
       case "bottom":
         $rtf_prefix .= "\\clvertalb";
-        break;
       }
     }
 
-    // add a white space or newlines to prevent mixup with text
+    // Add a white space or newline to prevent mixup with text.
     if (strlen($rtf_prefix) > 0) {
       $rtf_prefix .= "\r\n";
     }
@@ -1323,17 +1305,17 @@ class BookExportRtfController extends ControllerBase {
   /**
    * Convert CSS colors to a position in the colortable
    *
-   * @param css 
+   * @param string $css 
    *   The value in CSS, this is a string with the value and unit
    *
    * @return string
-   *   a string containing the RTF code of the provided color or the default
-   *   color on error
+   *   The position in the color table
    */
 
   private function bookexportrtf_convert_color($css) {
     $color = "";
-    if (preg_match("|^rgb\((\d+),(\d+),(\d+)\)$|", trim($css) ,$r)) {
+    $css = trim($css);
+    if (preg_match("|^rgb\((\d+),(\d+),(\d+)\)$|", $css ,$r)) {
       $red = $r[1];
       $green = $r[2];
       $blue = $r[3];
@@ -1341,7 +1323,7 @@ class BookExportRtfController extends ControllerBase {
         $color = "\\red" . $red . "\\green" . $green . "\\blue" . $blue;
       }
     }
-    if (preg_match("|^\#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$|", trim($css), $r)) {
+    if (preg_match("|^\#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$|", $css, $r)) {
       $red = hexdec($r[1]);
       $green = hexdec($r[2]);
       $blue = hexdec($r[3]);
@@ -1349,7 +1331,7 @@ class BookExportRtfController extends ControllerBase {
         $color = "\\red" . $red . "\\green" . $green . "\\blue" . $blue;
       }
     }
-    if (preg_match("|^\w+$|", trim($css))) {
+    if (preg_match("|^\w+$|", $css)) {
       $css_color_names = [
         'aliceblue' => "\\red240\\green248\\blue255",
         'antiquewhite' => "\\red250\\green235\\blue215",
@@ -1500,7 +1482,7 @@ class BookExportRtfController extends ControllerBase {
         'yellow' => "\\red255\\green255\\blue0",
         'yellowgreen' => "\\red154\\green205\\blue50"];
 
-      $css = strtolower(trim($css));
+      $css = strtolower($css);
       if (array_key_exists($css, $css_color_names)) {
         $color = $css_color_names[$css];
       }
@@ -1517,10 +1499,13 @@ class BookExportRtfController extends ControllerBase {
   }
 
   /**
-   * Convert CSS length to RTF's twips
+   * Convert CSS length to RTF
    *
-   * @param css 
-   *   The value in CSS, this is a string with the value and unit
+   * @param string $css 
+   *   The value in CSS, this is a string with the value and unit.
+   *
+   * @return string
+   *   The length in twips.
    */
 
   private function bookexportrtf_convert_length($css) {
@@ -1556,10 +1541,13 @@ class BookExportRtfController extends ControllerBase {
   }
 
   /**
-   * Converter from CSS font size to RTF's half points
+   * Converter CSS font size to RTF
    *
-   * @param css 
-   *   The value in CSS, this is a string with the value and unit
+   * @param string $css 
+   *   The value in CSS, this is a string with the value and unit.
+   *
+   * @return string
+   *   The font size in half points.
    */
 
   private function bookexportrtf_convert_font_size($css) {
