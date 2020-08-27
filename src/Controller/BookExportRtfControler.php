@@ -12,7 +12,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Response;
 
 /*
- * Load Simple HTML DOM
+ * Load the HTML parser
  *
  * get it here: https://simplehtmldom.sourceforge.io/
  * save it to: sites/all/libraries/simle_html_dom/
@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\Response;
 include_once('sites/all/libraries/simple_html_dom/simple_html_dom.php');
 
 /*
- * Load the css parser if not done yet
+ * Load the css parser
  *
  * get it here: https://github.com/Schepp/CSS-Parser
  * save it to: sites/all/libraries/schepp-css-parser/
@@ -209,7 +209,7 @@ class BookExportRtfController extends ControllerBase {
 
     $footer = "";
 
-    // are there any index terms?
+    // index
     $anchors = $html->find('a[name]');
     $terms = [];
     foreach ($anchors as $a) {
@@ -221,9 +221,8 @@ class BookExportRtfController extends ControllerBase {
     }
     sort($terms);
 
+    // Make the index if there are items.
     if (count($terms) > 0) {
-      // setup the section
-
       $style = $this->bookexportrtf_get_rtf_style_from_element($toc[0]);
 
       $footer .= $style[0];
@@ -234,7 +233,7 @@ class BookExportRtfController extends ControllerBase {
       $footer .= "{\\pard " . $style[1];
       $footer .= "{\\*\\bkmkstart chapterIndex}{\\*\\bkmkend chapterIndex}Index";
       $footer .= "\\par}\r\n";
-      $footer .= "\\sect \\sbknone \\cols2\r\n";
+      $footer .= "\\sect\\sbknone\\cols2\r\n";
 
       $cur_initial = "";
 
@@ -267,17 +266,15 @@ class BookExportRtfController extends ControllerBase {
     }
 
     /* 
-    * Then get the content.
-    * This is done second because the font table might be appended during the
-    * conversion process.
-    *
-    * The tough work is going to be done by bookexportrtf_traverse.
-    */
+     * Then get the content.
+     * This is done second because the font table might be appended during the
+     * conversion process.
+     *
+     * The actual conversion is done by bookexportrtf_traverse.
+     */
 
     $elements = $html->find('html');
     $this->bookexportrtf_traverse($elements);
-
-    // dumb the new code back to $content and strip tags
     $content = strip_tags($html);
 
     /*
@@ -289,6 +286,7 @@ class BookExportRtfController extends ControllerBase {
      * - Start of first page
      */
 
+     // RTF header
     $header = "\\rtf1\\ansi\r\n";
     $header .= "\\deff0 {\\fonttbl ";
     if (!is_array($this->bookexportrtf_fonttbl)) {
@@ -312,7 +310,7 @@ class BookExportRtfController extends ControllerBase {
     $header .= "\\fet0\\facingp\\ftnbj\\ftnrstpg\\widowctrl\r\n";
     $header .= "\\plain\r\n";
 
-    // front page
+    // Front page
     if (1) {
       $bookrtf_front_page = ['value' => '<h3>'.$this->bookexportrtf_book_title.'</h3>', 'format' => 'full_html'];
       $bookrtf_front_page["value"] = "<html><body><h3>" . $bookrtf_front_page["value"] . "</body></html>";
@@ -322,7 +320,7 @@ class BookExportRtfController extends ControllerBase {
       $title_html = strip_tags($title_html);
       $header .= $title_html;
     }
-    // flyleaf
+    // Flyleaf
     if (1) {
       $header .= "\\sect\\sftnrstpg\r\n";
       $header .= "{\\pard\\qc";
@@ -335,7 +333,7 @@ class BookExportRtfController extends ControllerBase {
       $header .= "Gegenereerd: " . date_format($date, "d-m-Y") . " \\par}\r\n";
     }
 
-    // table of contents
+    // Table of contents
     if (1) {
       $header .= "\\sect\\sftnrstpg\r\n";
 
@@ -580,21 +578,47 @@ class BookExportRtfController extends ControllerBase {
           break;
 
        case 'div':
-         // for div's I'm only interested in page-break-before and
+         // For divs I'm only interested in page-break-before and
          // page-break-after other style elements will be enherited by its
-         // children
+         // children.
 
          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
          $e->outertext = $style[0] . $e->innertext . $style[2];
           break;
 
         case 'h1':
-          // start of a new chapter --> new page, right header contains chapter
-          // title, bookmark for the table of contents
-          $title = $e->innertext;
-          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
-          $rtf = $style[0];
+          // start of a new chapter --> new section, right header contains
+          // chapter title, bookmark for the table of contents
 
+          /*
+           * Page break behaves erratic around section breaks. By default a
+           * section break also breaks the page but that isn't required, hence 
+           * add \\sbknone to prevent this.
+           *
+           * Page break is handled by css which adds \\page. However, in Libre
+           * office \\sect and \\sbknone seem to overwrite \\page. \\sect\\page
+           * leads to one page break instead of two and \\sect\\sbknone\\page 
+           * leads to no page break at all, even with newlines.
+           *
+           * Ignore the default CSS engine and add \\sbknone unless a page
+           * break should be added.
+           */
+
+          $title = $e->innertext;
+          $css = $this->bookexportrtf_get_css_style_from_element($e);
+          $rtf = "\\sect";
+          if (!array_key_exists('page-break-before', $css)) {
+            $rtf .= "\\sbknone";
+          }
+          elseif ($css['page-break-before'] != "always") {
+            $rtf .= "\\sbknone";
+          }
+          else {
+            unset($css['page-break-before']);
+          }
+          $rtf .= "\\sftnrstpg\r\n";
+
+          $style = $this->bookexportrtf_css2rtf($css);
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-left");
           $rtf .= "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-right");
@@ -648,7 +672,11 @@ class BookExportRtfController extends ControllerBase {
           $ratio = $width/$height;
 
           // asume full page width A4 - margins = 11909 - 2x1800  = 8309 twips
-          // TODO, add some scaleability here
+
+          /**
+           * @todo Scale images to 100% with max-width = page-width.
+           */
+
           $picwidth = 8309;
           $picheight = round($picwidth / $ratio);
           $scalex = 100;
@@ -1232,12 +1260,12 @@ class BookExportRtfController extends ControllerBase {
     // Page breaks
     if (array_key_exists('page-break-before', $css)) {
       if (trim($css['page-break-before']) == "always") {
-          $rtf_prefix .= "\\sect\\sftnrstpg";
+          $rtf_prefix .= "\\page";
        }
     }
     if (array_key_exists('page-break-after', $css)) {
       if (trim($css['page-break-after']) == "always") {
-          $rtf_suffix .= "\\sect\\sftnrstpg";
+          $rtf_suffix .= "\\page";
        }
     }
 
