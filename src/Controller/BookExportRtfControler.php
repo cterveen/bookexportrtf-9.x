@@ -104,21 +104,7 @@ class BookExportRtfController extends ControllerBase {
     // Get the node and subnodes in RTF format
     $rtf = $this->bookexportrtf_convert($node);
 
-    /** 
-     * @todo: The code below creates a direct download of the rtf file but
-     * generates an error on the next visited page. Find out why and how to fix
-     * this.
-     *
-     * header("Content-Type: application/rtf");
-     * header("Content-Disposition: inline; filename=\"gele-boekje.rtf\"");
-     * echo $rtf;
-     */
-    file_put_contents("sites/default/files/gele-boekje.rtf", $rtf);
-
-    return [
-      '#type' => 'markup',
-      '#markup' => $this->t("<a href = '/~rork/drupal9/sites/default/files/gele-boekje.rtf'>download</a>"),
-    ];
+    return new Response($rtf, Response::HTTP_OK, ['content-type' => 'application/rtf', 'content-disposition' => 'inline; filename="gele-boekje.rtf"']);
   }
 
   /**
@@ -202,10 +188,14 @@ class BookExportRtfController extends ControllerBase {
     $this->bookexportrtf_colortbl = [];
 
     /*
-    * Start with the footer. This is done to grab the index tables.
-    * Footer
-    * - index
-    */
+     * Generate the footer.
+     *
+     * Start with the footer to grab the index. This is required to make the
+     * right bookmarks during the content conversion.
+     *
+     * Footer
+     * - index
+     */
 
     $footer = "";
 
@@ -221,7 +211,6 @@ class BookExportRtfController extends ControllerBase {
     }
     sort($terms);
 
-    // Make the index if there are items.
     if (count($terms) > 0) {
       $style = $this->bookexportrtf_get_rtf_style_from_element($toc[0]);
 
@@ -266,9 +255,10 @@ class BookExportRtfController extends ControllerBase {
     }
 
     /* 
-     * Then get the content.
-     * This is done second because the font table might be appended during the
-     * conversion process.
+     * Generate the content.
+     *
+     * This is done second because the font and color tables may be appended
+     * during the conversion process.
      *
      * The actual conversion is done by bookexportrtf_traverse.
      */
@@ -278,6 +268,8 @@ class BookExportRtfController extends ControllerBase {
     $content = strip_tags($html);
 
     /*
+     * Generate the header
+     *
      * HEADER
      * - RTF header
      * - Front page
@@ -531,8 +523,7 @@ class BookExportRtfController extends ControllerBase {
    * replacing tags at the branches working up to the main stem.
    *
    * @param array $elements 
-   *   The elements from the HTML tree from which to start. This would be the
-   *   html element.
+   *   The elements from the HTML tree from which to start.
    */
  
   private function bookexportrtf_traverse($elements) {
@@ -591,17 +582,14 @@ class BookExportRtfController extends ControllerBase {
           // chapter title, bookmark for the table of contents
 
           /*
-           * Page break behaves erratic around section breaks. By default a
-           * section break also breaks the page but that isn't required, hence 
-           * add \\sbknone to prevent this.
+           * Page break behaves erratic around section breaks. Page break is
+           * handled by css which adds \\page. However, in Libre office 
+           * \\sect\\sbknone seem to overwrite \\page as \\sect\\sbknone\\page
+           * does not lead to a page break. Also \\sect\\page leads to one page
+           * break instead of two.
            *
-           * Page break is handled by css which adds \\page. However, in Libre
-           * office \\sect and \\sbknone seem to overwrite \\page. \\sect\\page
-           * leads to one page break instead of two and \\sect\\sbknone\\page 
-           * leads to no page break at all, even with newlines.
-           *
-           * Ignore the default CSS engine and add \\sbknone unless a page
-           * break should be added.
+           * Ignore the CSS engine and add \\sbknone unless a page break should
+           * be added before H1.
            */
 
           $title = $e->innertext;
@@ -610,7 +598,7 @@ class BookExportRtfController extends ControllerBase {
           if (!array_key_exists('page-break-before', $css)) {
             $rtf .= "\\sbknone";
           }
-          elseif ($css['page-break-before'] != "always") {
+          elseif (trim($css['page-break-before']) != "always") {
             $rtf .= "\\sbknone";
           }
           else {
@@ -851,7 +839,7 @@ class BookExportRtfController extends ControllerBase {
           /*
            * Tables are a little bit more complicated than lists. I do not feel
            * confident working backwards from cells. Better to store the whole
-           * table and than put it down again.
+           * table and then recreate it.
            */
 
           $num_rows = 0;
@@ -891,8 +879,8 @@ class BookExportRtfController extends ControllerBase {
               $table[$num_rows][$cur_cols]['style_infix'] = $style[1];
 
 
-              if (array_key_exists("width", $css)) {
-                $colwidth[$cur_cols] = $this->bookexportrtf_convert_length($css["width"]);
+              if (array_key_exists('width', $css)) {
+                $colwidth[$cur_cols] = $this->bookexportrtf_convert_length($css['width']);
               }
 
               // correct cur_cols for colspan.
@@ -1035,7 +1023,7 @@ class BookExportRtfController extends ControllerBase {
 
     $depth = 0;
 
-    // start the cascade
+    // Start the cascade looking upwards from the element to get all the css.
     while ($e) {
       // Get css from the element's style attribute.
       $style = $e->style;
