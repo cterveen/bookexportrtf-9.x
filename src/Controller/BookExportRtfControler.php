@@ -194,7 +194,7 @@ class BookExportRtfController extends ControllerBase {
     sort($terms);
 
     if (count($terms) > 0) {
-      $css = $this->bookexportrtf_get_css_style_from_element($e);
+      $css = $this->bookexportrtf_get_css_style_from_element($toc[0]);
       $style = $this->bookexportrtf_get_rtf_style_from_css($css);
 
       // Section break, without page break unless defined in the style.
