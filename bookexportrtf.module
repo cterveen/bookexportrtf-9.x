@@ -1,0 +1,38 @@
+<?php
+
+/**
+ * @file
+ * Provides RTF export posibilities for books
+ */
+
+use Drupal\node\NodeInterface;
+use Drupal\Core\Url;
+
+/**
+ * Implements hook_node_links_alter().
+ */
+function bookexportrtf_node_links_alter(array &$links, NodeInterface $node, array &$context) {
+  if ($context['view_mode'] != 'rss') {
+    $account = \Drupal::currentUser();
+
+    if (isset($node->book['depth'])) {
+      if ($context['view_mode'] == 'full' && node_is_page($node)) {
+        $book_links['book_rtf'] = [
+          'title' => t('Download as RTF'),
+          'url' => Url::fromRoute('bookexportrtf.content', [
+          'node' => $node->id(),
+          ]),
+          'attributes' => ['title' => t('Download as RTF Document')],
+        ];
+      }
+    }
+
+    if (!empty($book_links)) {
+      $links['bookexportrtf'] = [
+        '#theme' => 'links__node__book',
+        '#links' => $book_links,
+        '#attributes' => ['class' => ['links', 'inline']],
+      ];
+    }
+  }
+}
