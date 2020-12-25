@@ -754,28 +754,28 @@ class BookExportRtfController extends ControllerBase {
           $e->outertext = "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n";
           break;
 
-          case 's':
-          case 'del':
-          case 'ins':
-          case 'span':
-            // Remove the author information.
-            $class = $e->class;
-            if ($class == "field field--name-title field--type-string field--label-hidden") {
-              // label
-              $e->outertext = "";
-            }
-            elseif ($class == "field field--name-uid field--type-entity-reference field--label-hidden") {
-              // author
-              $e->outertext = "";
-            }
-            elseif ($class == "field field--name-created field--type-created field--label-hidden") {
-              // publication date
-              $e->outertext = "";
-            }
-            else {
-              $style = $this->bookexportrtf_get_rtf_style_from_element($e);
-              $e->outertext = "{" . $style[1] . $e->innertext . "}";
-            }
+        case 's':
+        case 'del':
+        case 'ins':
+        case 'span':
+          // Remove the author information.
+          $class = $e->class;
+          if ($class == "field field--name-title field--type-string field--label-hidden") {
+            // label
+            $e->outertext = "";
+          }
+          elseif ($class == "field field--name-uid field--type-entity-reference field--label-hidden") {
+            // author
+            $e->outertext = "";
+          }
+          elseif ($class == "field field--name-created field--type-created field--label-hidden") {
+            // publication date
+            $e->outertext = "";
+          }
+          else {
+            $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+            $e->outertext = "{" . $style[1] . $e->innertext . "}";
+          }
           break;
 
         case 'strong': 
@@ -1042,7 +1042,7 @@ class BookExportRtfController extends ControllerBase {
    *   The RTF markup as prefix, infix and suffix.
    */
   private function bookexportrtf_get_rtf_style_from_element($element) {
-    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_get_css_style_from_element($element));
+    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_get_css_style_from_element($element), $element->tag);
   }
   
   /**
@@ -1064,10 +1064,93 @@ class BookExportRtfController extends ControllerBase {
    * @param array $css 
    *   The css property-value pairs.
    *
+   * @param string $tag
+   *   An optional tag of the HTML element.
+   *
    * @return array
    *   The RTF markup as prefix, infix and suffix.
    */
-  private function bookexportrtf_get_rtf_style_from_css($css) {
+  private function bookexportrtf_get_rtf_style_from_css($css, $tag = NULL) {
+    if (!empty($tag)) {
+      // there are 5 basic style elements:
+      //   body: default font, others are inherited
+      //   div: page break
+      //   p: font, margin etc.
+      //   td: like p, but with borders
+      //   span: font only
+      // several other elements have similar properties to p, td or span.
+
+      // TODO: fix it because it's broken
+      $supported = [
+        'body' => [
+          'font-family' => 1,],
+        'div' => [
+          'page-break-before' => 1,
+          'page-break-after' => 1,],
+        'p' => [
+          'color' => 1,
+          'font-family' => 1,
+          'font-size' => 1,
+          'font-weight' => 1,
+          'margin-top' => 1,
+          'margin-right' => 1,
+          'margin-bottom' => 1,
+          'margin-left' => 1,
+          'text-align' => 1,
+          'text-decoration' => 1,
+          'text-decoration-color => 1',
+          'text-decoration-style' => 1,],
+        'td' => [
+          'color',
+          'border-bottom-style' => 1,
+          'border-bottom-width' => 1,
+          'border-left-style' => 1,
+          'border-left-width' => 1,
+          'border-right-style' => 1,
+          'border-right-width' => 1,
+          'border-top-style' => 1,
+          'border-top-width' => 1,
+          'margin-top' => 1,
+          'margin-right' => 1,
+          'margin-bottom' => 1,
+          'margin-left' => 1,
+          'font-family' => 1,
+          'font-size' => 1,
+          'font-weight' => 1,
+          'text-align' => 1,
+          'text-decoration' => 1,
+          'text-decoration-color' => 1,
+          'text-decoration-style' => 1,
+          'valign' => 1,],
+        'span' => [
+          'color' => 1,
+          'font-family' => 1,
+          'font-size' => 1,
+          'font-weight' => 1,
+          'text-decoration' => 1,
+          'text-decoration-color' => 1,
+          'text-decoration-style' => 1,],];
+
+      $supported['h1'] = $supported['p'];
+      $supported['h2'] = $supported['p'];
+      $supported['h3'] = $supported['p'];
+      $supported['h4'] = $supported['p'];
+      $supported['h5'] = $supported['p'];
+      $supported['h6'] = $supported['p'];
+      $supported['li'] = $supported['p'];
+      $supported['th'] = $supported['td'];
+      $supported['del'] = $supported['span'];
+      $supported['s'] = $supported['span'];
+      $supported['ins'] = $supported['span'];
+      $supported['u'] = $supported['span'];
+
+      foreach (array_keys($css) as $selector) {
+        if (!array_key_exists(trim($selector), $supported[$tag])) {
+          unset($css[$selector]);
+        }
+      }
+    }
+
     if (!is_array($css)) {
       return "";
     }
