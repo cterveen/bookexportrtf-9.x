@@ -634,15 +634,22 @@ class BookExportRtfController extends ControllerBase {
 
           $string = file_get_contents($url);
 
-          $img = imagecreatefromstring($string);
+          $info = getimagesizefromstring($string);
 
-          $width = imagesx($img);
-          $height = imagesy($img);
-          $ratio = $width/$height;
+          $width = $info[0];
+          $height = $info[1];
 
-          // Asume full page width A4 - margins = 11909 - 2x1800  = 8309 twips
-          $picwidth = 8309;
-          $picheight = round($picwidth / $ratio);
+          $picwidth = $this->bookexportrtf_convert_length($width . "px");
+          $picheight = $this->bookexportrtf_convert_length($height . "px");
+
+          // Scale to page width if wider
+          // Page width A4 - margins = 11909 - 2x1800  = 8309 twips
+          if ($picwidth > 8309) {
+            $ratio = $width/$height;
+            $picwidth = 8309;
+            $picheight = round($picwidth / $ratio);
+          }
+
           $scalex = 100;
           $scaley = 100;
 
@@ -654,12 +661,22 @@ class BookExportRtfController extends ControllerBase {
           $rtf .= "\\picscalex" . $scalex;
           $rtf .= "\\picscaley" . $scaley;
 
+
           // Set image type.
-          if (substr($url, -4) == ".png") {
-            $rtf .= "\pngblip\r\n";
-          }
-          else if (substr($url, -4) == ".jpg" or substr($url, -5) == ".jpeg") {
-            $rtf .= "\jpegblip\r\n";
+          switch($info['mime']) {
+            case "image/png":
+              $rtf .= "\pngblip\r\n";
+              break;
+            case "image/jpeg":
+              $rtf .= "\jpegblip\r\n";
+              break;
+            case "image/gif":
+              // RTF does not support gif, convert to png
+              $img = imagecreatefromstring($string);
+              imagepng($img);
+              $string = ob_get_contents(); // read from buffer
+              ob_end_clean(); // delete buffer
+              $rtf .= "\pngblip\r\n";
           }
 
           $hex = bin2hex($string);
