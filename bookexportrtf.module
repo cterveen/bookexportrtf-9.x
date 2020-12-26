@@ -18,14 +18,37 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<p>' . t('The module allows the contents of a book or book part to be downloaded as an RTF file. A link to the RTF file is displayed at the bottom of the book page.') . '</p>';
       $output .= '<h3>' . t('Dependencies') . '</h3>';
       $output .= '<table><tbody>';
-      $output .= '<tr><th>' . t('Library') . '</th><th>' . t('Installation directory') . '</th><th>' . t('Files') . '</th></tr>';
-      $output .= '<tr><td><a href = "https://simplehtmldom.sourceforge.io/" target = "_blank">Simple HTML Dom</a></td>';
+      $output .= '<tr><th>' . t('Library') . '</th><th>' . t('Installation directory') . '</th><th>' . t('Required files') . '</th></tr>';
+      $output .= '<tr><td><a href = "https://simplehtmldom.sourceforge.io/" target = "_blank">Simple HTML DOM</a></td>';
       $output .= '    <td>/libraries/simple_html_dom</td><td>simple_html_dom.php</td></tr>';
       $output .= '<tr><td><a href = "https://github.com/Schepp/CSS-Parser" target = "_blank">Schepp\'s CSS Parser</a></td>';
       $output .= '    <td>/libraries/schepp-css-parser</td><td>parser.php</td></tr>';
       $output .= '</tbody></table>';
       $output .= '<h3>' . t('Document styling') . '</h3>';
-      $output .= '<p>' . t('The document styling is configured using CSS. The default css file is in the module\'s /css directory.');
+      $output .= '<p>' . t('The document styling is configured using CSS. The default css file is in the module\'s /css directory. ');
+      $output .= t('A custom css file named bookexportrtf.rtf.css can be added to the theme\'s css directory. ');
+      $output .= t('The style in this file overwrites the standard style and new elements, classes or id\'s may be added. ');
+      $output .= t('Style is inherited from parent elements just like normal CSS even if the selector is not supported for the parent.') . '</p>';
+      $output .= '<p>' . t('Currently the following elements and selectors are supported:') . '</p>';
+      $output .= '<table><tbody>';
+      $output .= '<tr><th>' . t('Element type') . '</th><th>' . t('Elements') . '</th><th>' . t('Supported selectors') . '</th></tr>';
+      $output .= '<tr><td valign = "top">' . t('Document') . '</td>';
+      $output .= '    <td valign = "top">body</td>';
+      $output .= '    <td valign = "top">font-family</td></tr>';
+      $output .= '<tr><td valign = "top">' . t('Lay-out') . '</td>';
+      $output .= '    <td valign = "top">div</td>';
+      $output .= '    <td valign = "top">page-break-before</ br>page-break-after</td></tr>';      
+      $output .= '<tr><td valign = "top">' . t('Block') . '</td>';
+      $output .= '    <td valign = "top">h1</ br>h2</ br>h3</ br>h4</ br>h5</ br>h1</ br>li</ br>p</td>';
+      $output .= '    <td valign = "top">color</ br>margin-top</ br>margin-right</ br>margin-bottom</ br>margin-left</ br>font-family</ br>font-size</ br>font-weight</ br>text-align</ br>text-decoration</ br>text-decoration-color</ br>text-decoration-style</td></tr>';
+      $output .= '<tr><td valign = "top">' . t('In-line') . '</td>';
+      $output .= '    <td valign = "top">del</ br>ins</ br>s</ br>span</ br>u</td>';
+      $output .= '    <td valign = "top">color</ br>font-family</ br>font-size</ br>font-weight</ br>text-decoration</ br>text-decoration-color</ br>text-decoration-style</td></tr>';
+      $output .= '<tr><td valign = "top">' . t('Table cell') . '</td>';
+      $output .= '    <td valign = "top">td</ br>th</td>';
+      $output .= '    <td valign = "top">color</ br>border-bottom-style</ br>border-bottom-width</ br>border-left-style</ br>border-left-width</ br>border-right-style</ br>border-right-width</ br>border-top-style</ br>border-top-width</ br>margin-top</ br>margin-right</ br>margin-bottom</ br>margin-left</ br>font-family</ br>font-size</ br>font-weight</ br>text-align</ br>text-decoration</ br>text-decoration-color</ br>text-decoration-style</ br>vertical-align</td></tr>';
+      $output .= '</tbody></table>';
+
       return $output;
     default:
   }
