@@ -852,7 +852,7 @@ class BookExportRtfController extends ControllerBase {
               }
 
               $css = $this->bookexportrtf_get_css_style_from_element($c);
-              $style = $this->bookexportrtf_get_rtf_style_from_css($css);
+              $style = $this->bookexportrtf_get_rtf_style_from_css($css, $c->tag);
 
               $table[$num_rows][$cur_cols]['style'] = $css;
               $table[$num_rows][$cur_cols]['style_prefix'] = $style[0];
@@ -937,7 +937,7 @@ class BookExportRtfController extends ControllerBase {
               $css['text-decoration'] = $css['text-decoration'] . " underline";
             }
           }
-          $style = $this->bookexportrtf_get_rtf_style_from_css($css);
+          $style = $this->bookexportrtf_get_rtf_style_from_css($css, 'u');
           $e->outertext = "{" . $style[1] . $e->innertext . "}";
       }
     }
@@ -1143,7 +1143,7 @@ class BookExportRtfController extends ControllerBase {
           'text-decoration' => 1,
           'text-decoration-color' => 1,
           'text-decoration-style' => 1,
-          'valign' => 1,],
+          'vertical-align' => 1,],
         'span' => [
           'color' => 1,
           'font-family' => 1,
@@ -1167,8 +1167,11 @@ class BookExportRtfController extends ControllerBase {
       $supported['u'] = $supported['span'];
 
       foreach (array_keys($css) as $selector) {
+        
+      echo 'Check ' . $tag . '-' . $selector;
         if (!array_key_exists(trim($selector), $supported[$tag])) {
           unset($css[$selector]);
+          echo 'failed';
         }
       }
     }
