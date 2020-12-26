@@ -45,6 +45,9 @@
  * Note that values and colors should be in css format, this includes unit or
  * type specification. All values will be converted to rtf appropriate values.
  * Supported values are mentioned between square brackets behind the property.
+ * 
+ * The document style can be customized by adding a bookexportrtf.rtf.css file
+ * to the theme's css directory.
  */
 
 /* basic html elements */
@@ -57,10 +60,10 @@ p {
   text-align: justify;
 }
 h1 {
+  page-break-before: always;
   margin-bottom: 13px;
   font-size: 16pt;
   font-weight: bold;
-  page-break-before: always;
 }
 h2 {
   margin-bottom: 0px;
