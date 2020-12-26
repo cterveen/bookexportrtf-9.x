@@ -15,19 +15,19 @@ use Symfony\Component\HttpFoundation\Response;
  * Load the HTML parser
  *
  * get it here: https://simplehtmldom.sourceforge.io/
- * save it to: sites/all/libraries/simle_html_dom/
+ * save it to: /libraries/simle_html_dom/
  * (only needs simple_html_dom.php)
  */
-include_once('sites/all/libraries/simple_html_dom/simple_html_dom.php');
+include_once('libraries/simple_html_dom/simple_html_dom.php');
 
 /*
  * Load the css parser
  *
  * get it here: https://github.com/Schepp/CSS-Parser
- * save it to: sites/all/libraries/schepp-css-parser/
+ * save it to: /libraries/schepp-css-parser/
  * (only needs parser.php)
  */ 
-include_once('sites/all/libraries/schepp-css-parser/parser.php');
+include_once('libraries/schepp-css-parser/parser.php');
 
 /**
  * Defines BookExportRtfController class.
@@ -665,10 +665,10 @@ class BookExportRtfController extends ControllerBase {
           // Set image type.
           switch($info['mime']) {
             case "image/png":
-              $rtf .= "\pngblip\r\n";
+              $rtf .= "\\pngblip\r\n";
               break;
             case "image/jpeg":
-              $rtf .= "\jpegblip\r\n";
+              $rtf .= "\\jpegblip\r\n";
               break;
             case "image/gif":
               // RTF does not support gif, convert to png
@@ -676,7 +676,7 @@ class BookExportRtfController extends ControllerBase {
               imagepng($img);
               $string = ob_get_contents(); // read from buffer
               ob_end_clean(); // delete buffer
-              $rtf .= "\pngblip\r\n";
+              $rtf .= "\\pngblip\r\n";
           }
 
           $hex = bin2hex($string);
@@ -1097,7 +1097,6 @@ class BookExportRtfController extends ControllerBase {
       //   span: font only
       // several other elements have similar properties to p, td or span.
 
-      // TODO: fix it because it's broken
       $supported = [
         'body' => [
           'font-family' => 1,],
