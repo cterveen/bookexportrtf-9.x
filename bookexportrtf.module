@@ -4,17 +4,38 @@
  * @file
  * Provides RTF export posibilities for books
  */
-
 use Drupal\node\NodeInterface;
 use Drupal\Core\Url;
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.bookexportrtf':
+      $output = '';
+      $output .= '<p>' . t('The module allows the contents of a book or book part to be downloaded as an RTF file. A link to the RTF file is displayed at the bottom of the book page.') . '</p>';
+      $output .= '<h3>' . t('Dependencies') . '</h3>';
+      $output .= '<table><tbody>';
+      $output .= '<tr><th>' . t('Library') . '</th><th>' . t('Installation directory') . '</th><th>' . t('Files') . '</th></tr>';
+      $output .= '<tr><td><a href = "https://simplehtmldom.sourceforge.io/" target = "_blank">Simple HTML Dom</a></td>';
+      $output .= '    <td>/libraries/simple_html_dom</td><td>simple_html_dom.php</td></tr>';
+      $output .= '<tr><td><a href = "https://github.com/Schepp/CSS-Parser" target = "_blank">Schepp\'s CSS Parser</a></td>';
+      $output .= '    <td>/libraries/schepp-css-parser</td><td>parser.php</td></tr>';
+      $output .= '</tbody></table>';
+      $output .= '<h3>' . t('Document styling') . '</h3>';
+      $output .= '<p>' . t('The document styling is configured using CSS. The default css file is in the module\'s /css directory.');
+      return $output;
+    default:
+  }
+}
 
 /**
  * Implements hook_node_links_alter().
  */
 function bookexportrtf_node_links_alter(array &$links, NodeInterface $node, array &$context) {
   if ($context['view_mode'] != 'rss') {
-    $account = \Drupal::currentUser();
-
     if (isset($node->book['depth'])) {
       if ($context['view_mode'] == 'full' && node_is_page($node)) {
         $book_links['book_rtf'] = [
