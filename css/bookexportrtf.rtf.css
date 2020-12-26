@@ -34,7 +34,7 @@
  *   Properties only applied in table cells (td, th):
  *    border-*-width [cm mm in px pt pc]
  *    border-*-style [solid dotted dashed double none hidden]
- *    valign [top middle bottom]
+ *    vertical-align [top middle bottom]
  *    width [cm mm in px pt pc]
  *      note that the default page width (ex. margins) is about 554 pixels
  * 
