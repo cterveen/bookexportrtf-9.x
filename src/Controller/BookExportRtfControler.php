@@ -21,12 +21,12 @@ use Symfony\Component\HttpFoundation\Response;
 include_once('libraries/simple_html_dom/simple_html_dom.php');
 
 /*
- * Load the css parser
+ * Load the CSS parser
  *
  * get it here: https://github.com/Schepp/CSS-Parser
  * save it to: /libraries/schepp-css-parser/
  * (only needs parser.php)
- */ 
+ */
 include_once('libraries/schepp-css-parser/parser.php');
 
 /**
@@ -141,9 +141,15 @@ class BookExportRtfController extends ControllerBase {
     $this->bookexportrtf_book_title = $toc[0]->innertext;
 
     // Get the style sheet(s), setup the font and color tables.
+    $css_files = ["sites/all/modules/bookexportrtf/css/bookexportrtf.rtf.css"];
+    $theme = \Drupal::theme()->getActiveTheme();
+    $theme_css_file = $theme->getPath() . "/css/bookexportrtf.rtf.css";
+    if (file_exists($theme_css_file)) {
+      array_push($css_files, $theme_css_file);
+    }
 
     $css = ["main" => []];  
-    foreach (["sites/all/modules/bookexportrtf/css/bookexportrtf.rtf.css"] as $css_file) {
+    foreach ($css_files as $css_file) {
       if (is_file($css_file)) {
         $css_parser = new CssParser();
         $css_parser->load_files($css_file);
@@ -155,7 +161,7 @@ class BookExportRtfController extends ControllerBase {
             $this->bookexportrtf_css[$selector][$property] = $css['main'][$selector][$property];
           }
         }
-      }  
+      }
     }
 
     // Set the default font.
