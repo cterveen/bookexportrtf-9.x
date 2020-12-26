@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * @file
+ * Check requirements for the Book Export RTF module.
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function bookexportrtf_requirements($phase) {
+  $requirements = [];
+
+  if ($phase == 'install' || $phase == 'runtime') {
+    $html_parser_detected = file_exists(DRUPAL_ROOT . '/libraries/simple_html_dom/simple_html_dom.php');
+
+    if ($html_parser_detected) {
+      $requirements['bookexportrtf_html_parser'] = [
+        'title' => t('Book Export RTF'),
+        'severity' => REQUIREMENT_OK,
+      ];
+    }
+    else  {
+      $requirements['bookexportrtf_html_parser'] = [
+        'title' => t('Book Export RTF'),
+        'severity' => REQUIREMENT_ERROR,
+        'description' => t('Before you can use the Book Export RTF module, you need to download Simple HTML DOM and place it in /libraries/simple_html_dom/. Check the module help for more information. <a href=":plugin_url">Get Simple HTML DOM here</a>.', [':plugin_url' => 'https://simplehtmldom.sourceforge.io/']),
+      ];
+    }
+
+    $css_parser_detected = file_exists(DRUPAL_ROOT . '/libraries/schepp-css-parser/parser.php');
+    if ($css_parser_detected) {
+      $requirements['bookexportrtf_css_parser'] = [
+        'title' => t('Book Export RTF'),
+        'severity' => REQUIREMENT_OK,
+      ];
+    }
+    else  {
+      $requirements['bookexportrtf_css_parser'] = [
+        'title' => t('Book Export RTF'),
+        'severity' => REQUIREMENT_ERROR,
+        'description' => t('Before you can use the Book Export RTF module, you need to download Schepp\'s CSS Parser and place it in /libraries/schepp-css-parser/. Check the module help for more information. <a href=":plugin_url">Get Schepp\'s CSS Parser here</a>.', [':plugin_url' => 'https://github.com/Schepp/CSS-Parser']),
+      ];
+    }
+  }
+
+  return $requirements;
+}
