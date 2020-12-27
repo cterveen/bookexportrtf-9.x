@@ -1167,17 +1167,14 @@ class BookExportRtfController extends ControllerBase {
       $supported['u'] = $supported['span'];
 
       foreach (array_keys($css) as $selector) {
-        
-      echo 'Check ' . $tag . '-' . $selector;
         if (!array_key_exists(trim($selector), $supported[$tag])) {
           unset($css[$selector]);
-          echo 'failed';
         }
       }
     }
 
     if (!is_array($css)) {
-      return "";
+      return ["", "", ""];
     }
 
     // RTF can hold style elements before, within and after blocks.
