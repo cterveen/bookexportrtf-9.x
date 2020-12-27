@@ -118,11 +118,18 @@ class BookExportRtfController extends ControllerBase {
     $content = preg_replace("|^[^<]+|", "", $content);
     $content = preg_replace("|>[^>]+$|", ">", $content);
 
-    // Remove newlines.
+    // Remove newlines except when newlines are enclosed by pre-tags.
+    $html = str_get_html($content,true,true,'UTF-8',false);
+    $elements = $html->find("pre");
+    foreach ($elements as $e) {
+      $e->outertext = preg_replace("|[\r\n]|", "\\tab\\line ", $e->outertext);
+    }
+    $content = $html;
+
     $content = preg_replace("|[\r\n]|", "", $content);
 
     // Remove white-space between structural elements.
-    foreach (['td', 'p', 'li', 'div', 'h1', 'h2', 'h3', 'ol', 'ul', 'body', 'head', 'html'] as $element) {
+    foreach (['td', 'p', 'li', 'div', 'h1', 'h2', 'h3', 'ol', 'ul', 'body', 'head', 'html', 'pre', 'code'] as $element) {
       $content = preg_replace("|<\/".$element.">\s+<|", "</".$element."><", $content);
       $content = preg_replace("|>\s+<".$element."|", "><".$element, $content);  
     }
@@ -772,7 +779,9 @@ class BookExportRtfController extends ControllerBase {
           $e->outertext = $rtf;
           break;
 
+        case 'code':
         case 'p':
+          // These are all paragraphs with specific markup
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $e->outertext = "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n";
           break;
@@ -781,6 +790,8 @@ class BookExportRtfController extends ControllerBase {
         case 'del':
         case 'ins':
         case 'span':
+          // These are inline elements with specific markup
+
           // Remove the author information.
           $class = $e->class;
           if ($class == "field field--name-title field--type-string field--label-hidden") {
@@ -1153,12 +1164,18 @@ class BookExportRtfController extends ControllerBase {
           'text-decoration-color' => 1,
           'text-decoration-style' => 1,],];
 
+      // headers also support bage breaks
       $supported['h1'] = $supported['p'];
-      $supported['h2'] = $supported['p'];
-      $supported['h3'] = $supported['p'];
-      $supported['h4'] = $supported['p'];
-      $supported['h5'] = $supported['p'];
-      $supported['h6'] = $supported['p'];
+      $supported['h1']['page-break-before'] = 1;
+      $supported['h1']['page-break-after'] = 1;
+
+      // inherit
+      $supported['h2'] = $supported['h1'];
+      $supported['h3'] = $supported['h1'];
+      $supported['h4'] = $supported['h1'];
+      $supported['h5'] = $supported['h1'];
+      $supported['h6'] = $supported['h1'];
+      $supported['code'] = $supported['p'];
       $supported['li'] = $supported['p'];
       $supported['th'] = $supported['td'];
       $supported['del'] = $supported['span'];
