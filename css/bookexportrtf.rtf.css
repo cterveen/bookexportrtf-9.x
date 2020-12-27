@@ -5,6 +5,8 @@
  *    h1 h2 h3 h4 h5 h6
  *    li
  *    th td
+ *    code
+ *    pre
  *    span
  *    del s ins
  *    u
@@ -17,26 +19,26 @@
  *    .footer-right
  *  
  *  Supported properties [values]:
- *    margin-* [cm mm in px pt pc]
+ *    margin-* [cm, mm, in, px, pt, pc]
  *    font-family [first value only]
- *    font-size [cm mm in px pt pc]
+ *    font-size [cm, mm, in, px, pt, pc]
  *    font-weight [bold, normal]
  *    text-align [left, right, center, justify]
  *    text-decoration [line-through, underline, none]
  *      RTF does not support overstrike.
  *    text-decoration-color [rgb(), #, color name]
  *      RTF only supports color definition for underline.
- *      Libre Office does not implement underline color from RTF.
+ *      LibreOffice does not implement underline color from RTF.
  *    text-decoration-style [solid, double, dashed, dotted, wavy]
- *      RTF only supports style for underline
+ *      RTF only supports style for underline.
  *    color [rgb(), #, color name]
  * 
  *   Properties only applied in table cells (td, th):
- *    border-*-width [cm mm in px pt pc]
- *    border-*-style [solid dotted dashed double none hidden]
- *    vertical-align [top middle bottom]
- *    width [cm mm in px pt pc]
- *      note that the default page width (ex. margins) is about 554 pixels
+ *    border-*-width [cm, mm, in, px, pt, pc]
+ *    border-*-style [solid, dotted, dashed, double, none, hidden]
+ *    vertical-align [top, middle, bottom]
+ *    width [cm, mm, in, px, pt, pc]
+ *      note that the default page width (ex. margins) is about 554 pixels.
  * 
  *   Properties only applied in h1-6, div
  *    page-break-before [always, avoid]
@@ -104,6 +106,9 @@ s {
 }
 del {
   text-decoration: line-through;
+}
+code {
+  font-family: monospace;
 }
 
 /* headers and footers  */
