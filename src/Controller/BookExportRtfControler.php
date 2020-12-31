@@ -686,6 +686,7 @@ class BookExportRtfController extends ControllerBase {
             case "image/gif":
               // RTF does not support gif, convert to png
               $img = imagecreatefromstring($string);
+              ob_start();
               imagepng($img);
               $string = ob_get_contents(); // read from buffer
               ob_end_clean(); // delete buffer
