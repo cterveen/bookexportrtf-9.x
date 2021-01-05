@@ -11,24 +11,6 @@ use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Response;
 
-/*
- * Load the HTML parser
- *
- * get it here: https://simplehtmldom.sourceforge.io/
- * save it to: /libraries/simle_html_dom/
- * (only needs simple_html_dom.php)
- */
-include_once('libraries/simple_html_dom/simple_html_dom.php');
-
-/*
- * Load the CSS parser
- *
- * get it here: https://github.com/Schepp/CSS-Parser
- * save it to: /libraries/schepp-css-parser/
- * (only needs parser.php)
- */
-include_once('libraries/schepp-css-parser/parser.php');
-
 /**
  * Defines BookExportRtfController class.
  */
@@ -40,7 +22,7 @@ class BookExportRtfController extends ControllerBase {
    * @var \Drupal\book\BookExport
    */
   protected $bookExport;
-  
+
   /**
    * The renderer.
    *
@@ -91,7 +73,7 @@ class BookExportRtfController extends ControllerBase {
         '#markup' => $this->t("Not a book page, so nothing to export."),
       ];
     }
-  
+
     // Get the node and subnodes in RTF format.
     $rtf = $this->bookexportrtf_convert($node);
 
@@ -99,7 +81,7 @@ class BookExportRtfController extends ControllerBase {
   }
 
   /**
-   * Converts the book and it's subpages to RTF.
+   * Converts the book and its subpages to RTF.
    *
    * @param \Drupal\node\NodeInterface $node
    *   The node to export.
@@ -108,6 +90,24 @@ class BookExportRtfController extends ControllerBase {
    *   Return the book in RTF format.
    */
   private function bookexportrtf_convert(NodeInterface $node) {
+    /*
+     * Load the HTML parser
+     *
+     * get it here: https://simplehtmldom.sourceforge.io/
+     * save it to: /libraries/simle_html_dom/
+     * (only needs simple_html_dom.php)
+     */
+    include_once(DRUPAL_ROOT . '/libraries/simple_html_dom/simple_html_dom.php');
+
+    /*
+     * Load the CSS parser
+     *
+     * get it here: https://github.com/Schepp/CSS-Parser
+     * save it to: /libraries/schepp-css-parser/
+     * (only needs parser.php)
+     */
+    include_once(DRUPAL_ROOT . '/libraries/schepp-css-parser/parser.php');
+
     // Grab the contents of the book in HTML form
     $exported_book = $this->bookExport->bookExportHtml($node);
     $content = new Response($this->renderer->renderRoot($exported_book));
@@ -131,7 +131,7 @@ class BookExportRtfController extends ControllerBase {
     // Remove white-space between structural elements.
     foreach (['td', 'p', 'li', 'div', 'h1', 'h2', 'h3', 'ol', 'ul', 'body', 'head', 'html', 'pre', 'code'] as $element) {
       $content = preg_replace("|<\/".$element.">\s+<|", "</".$element."><", $content);
-      $content = preg_replace("|>\s+<".$element."|", "><".$element, $content);  
+      $content = preg_replace("|>\s+<".$element."|", "><".$element, $content);
     }
     $content = preg_replace("|-->\s+<|", "--><", $content);
     $content = preg_replace("|>\s+<!--|", "><!--", $content);
@@ -155,7 +155,7 @@ class BookExportRtfController extends ControllerBase {
       array_push($css_files, $theme_css_file);
     }
 
-    $css = ["main" => []];  
+    $css = ["main" => []];
     foreach ($css_files as $css_file) {
       if (is_file($css_file)) {
         $css_parser = new CssParser();
@@ -238,9 +238,9 @@ class BookExportRtfController extends ControllerBase {
       foreach ($terms as $t) {
         if (!isset($this->bookexpor_rtf_index_id[$t])) {
           $this->bookexpor_rtf_index_id[$t] = $i;
-          $anchor = "index-" . $i ; 
+          $anchor = "index-" . $i ;
           $i++;
-  
+
           $initial = substr($t, 0, 1);
           if (is_numeric($initial)) {
             $initial = "#";
@@ -348,7 +348,7 @@ class BookExportRtfController extends ControllerBase {
         $chapter = $match[1];
 
         $header .= "\\trowd";
-        $header .= "\\cellx7000 \\cellx8309\r\n"; 
+        $header .= "\\cellx7000 \\cellx8309\r\n";
         $header .= "\\intbl\\pard " . $title . "\\cell";
         $header .= "\\qr{\\field{\*\\fldinst PAGEREF chapter";
         $header .= $chapter;
@@ -356,7 +356,7 @@ class BookExportRtfController extends ControllerBase {
       }
 
       $header .= "\\trowd";
-      $header .= "\\cellx7000 \\cellx8309\r\n"; 
+      $header .= "\\cellx7000 \\cellx8309\r\n";
       $header .= "\\intbl\\pard Index\\cell";
       $header .= "\\qr{\\field{\*\\fldinst PAGEREF chapterIndex}}\\cell\\row\r\n";
       $header .= "}\\par}\r\n";
@@ -520,10 +520,10 @@ class BookExportRtfController extends ControllerBase {
    * the structure. This is solved by going through the tree and start
    * replacing tags at the branches working up to the main stem.
    *
-   * @param array $elements 
+   * @param array $elements
    *   The elements from the HTML tree from which to start.
    */
- 
+
   private function bookexportrtf_traverse($elements) {
     foreach ($elements as $e) {
       if ($e->first_child()) {
@@ -553,7 +553,7 @@ class BookExportRtfController extends ControllerBase {
             // Anchor, replace for the index, ignore others.
             if (preg_match("|^index|", $e->name)) {
               $label = substr($e->name, 5);
-              $anchor = "index-" . $this->bookexpor_rtf_index_id[$label]; 
+              $anchor = "index-" . $this->bookexpor_rtf_index_id[$label];
               $e->outertext = "{\\*\\bkmkstart " . $anchor . "}{\\*\\bkmkend ".$anchor."}";
             }
           }
@@ -578,7 +578,7 @@ class BookExportRtfController extends ControllerBase {
           // Start of a new chapter, thus start a new section.
           //
           // Page break behaves erratic around section breaks. Page break is
-          // handled by css which adds \\page. However, in Libre office 
+          // handled by css which adds \\page. However, in Libre office
           // \\sect\\sbknone seem to overwrite \\page as \\sect\\sbknone\\page
           // does not lead to a page break. Also \\sect\\page leads to one page
           // break instead of two.
@@ -633,7 +633,7 @@ class BookExportRtfController extends ControllerBase {
           $e->outertext = "";
           break;
 
-        case 'i': 
+        case 'i':
           $e->outertext = "{\\i " . $e->innertext . "}";
           break;
 
@@ -813,8 +813,8 @@ class BookExportRtfController extends ControllerBase {
           }
           break;
 
-        case 'strong': 
-        case 'b':  
+        case 'strong':
+        case 'b':
           $e->outertext = "{\\b " . $e->innertext . "}";
           break;
 
@@ -826,7 +826,7 @@ class BookExportRtfController extends ControllerBase {
           $e->outertext = "{\\sub " . $e->innertext . "}";
           break;
 
-        case 'sup': 
+        case 'sup':
           $e->outertext = "{\\super " . $e->innertext . "}";
           break;
 
@@ -958,7 +958,7 @@ class BookExportRtfController extends ControllerBase {
   /**
    * Get the style for an HTML element.
    *
-   * @param object $e 
+   * @param object $e
    *   An element from the html tree.
    *
    * @return array
@@ -981,7 +981,7 @@ class BookExportRtfController extends ControllerBase {
       'font-variant' => 1,
       'font-weight' => 1,
       'font-size-adjust' => 1,
-      'font-stretch' => 1, 
+      'font-stretch' => 1,
       'font' => 1,
       'letter-spacing' => 1,
       'line-height' => 1,
@@ -1070,7 +1070,7 @@ class BookExportRtfController extends ControllerBase {
   /**
    * Retrieve the RTF markup from an HTML element.
    *
-   * @param object $element 
+   * @param object $element
    *   An HTML element
    *
    * @return array
@@ -1079,11 +1079,11 @@ class BookExportRtfController extends ControllerBase {
   private function bookexportrtf_get_rtf_style_from_element($element) {
     return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_get_css_style_from_element($element), $element->tag);
   }
-  
+
   /**
    * Retrieve the RTF markup from an CSS selector.
    *
-   * @param string $selector 
+   * @param string $selector
    *   The CSS selector.
    *
    * @return array
@@ -1096,7 +1096,7 @@ class BookExportRtfController extends ControllerBase {
   /**
    * Convert a CSS-array into the appropriate RTF markup.
    *
-   * @param array $css 
+   * @param array $css
    *   The css property-value pairs.
    *
    * @param string $tag
@@ -1107,8 +1107,7 @@ class BookExportRtfController extends ControllerBase {
    */
   private function bookexportrtf_get_rtf_style_from_css($css, $tag = NULL) {
     if (!empty($tag)) {
-      // there are 5 basic style elements:
-      //   body: default font, others are inherited
+      // there are 4 basic style elements:
       //   div: page break
       //   p: font, margin etc.
       //   td: like p, but with borders
@@ -1116,8 +1115,6 @@ class BookExportRtfController extends ControllerBase {
       // several other elements have similar properties to p, td or span.
 
       $supported = [
-        'body' => [
-          'font-family' => 1,],
         'div' => [
           'page-break-before' => 1,
           'page-break-after' => 1,],
@@ -1132,10 +1129,10 @@ class BookExportRtfController extends ControllerBase {
           'margin-left' => 1,
           'text-align' => 1,
           'text-decoration' => 1,
-          'text-decoration-color => 1',
+          'text-decoration-color' => 1,
           'text-decoration-style' => 1,],
         'td' => [
-          'color',
+          'color' => 1,
           'border-bottom-style' => 1,
           'border-bottom-width' => 1,
           'border-left-style' => 1,
@@ -1165,7 +1162,7 @@ class BookExportRtfController extends ControllerBase {
           'text-decoration-color' => 1,
           'text-decoration-style' => 1,],];
 
-      // headers also support bage breaks
+      // headers also support page breaks
       $supported['h1'] = $supported['p'];
       $supported['h1']['page-break-before'] = 1;
       $supported['h1']['page-break-after'] = 1;
@@ -1199,7 +1196,7 @@ class BookExportRtfController extends ControllerBase {
     $rtf_prefix = "";
     $rtf_infix = "";
     $rtf_suffix = "";
-  
+
     // Use if statements rather than switch to group tags.
     if (array_key_exists('margin-top', $css)) {
       $rtf_infix .= "\\sb" . $this->bookexportrtf_convert_length($css['margin-top']);
@@ -1232,7 +1229,7 @@ class BookExportRtfController extends ControllerBase {
       }
     }
     if (array_key_exists('font-family', $css)) {
-      // In CSS a family of fonts is given, if the first is not available the 
+      // In CSS a family of fonts is given, if the first is not available the
       // second is tried etc. RTF doesn't support this so pick the first.
       $r = explode(",", $css['font-family']);
       $font = trim($r[0]);
@@ -1243,7 +1240,7 @@ class BookExportRtfController extends ControllerBase {
       }
       if ($this->bookexportrtf_fonttbl[$font] != 0) {
          $rtf_infix .= "\\f" . $this->bookexportrtf_fonttbl[$font];
-       }
+      }
     }
     if (array_key_exists('font-size', $css)) {
       $rtf_infix .= "\\fs". $this->bookexportrtf_convert_font_size($css['font-size']);
@@ -1391,7 +1388,7 @@ class BookExportRtfController extends ControllerBase {
   /**
    * Convert CSS colors to a position in the colortable
    *
-   * @param string $css 
+   * @param string $css
    *   The value in CSS, this is a string with the value and unit
    *
    * @return string
@@ -1571,7 +1568,7 @@ class BookExportRtfController extends ControllerBase {
       if (array_key_exists($css, $css_color_names)) {
         $color = $css_color_names[$css];
       }
-    } 
+    }
 
     if ($color == "") {
       return 0;
@@ -1580,13 +1577,13 @@ class BookExportRtfController extends ControllerBase {
     if (!array_key_exists($color, $this->bookexportrtf_colortbl)) {
        $this->bookexportrtf_colortbl[$color] = count($this->bookexportrtf_colortbl)+1;
     }
-    return $this->bookexportrtf_colortbl[$color];  
+    return $this->bookexportrtf_colortbl[$color];
   }
 
   /**
    * Convert CSS length to RTF
    *
-   * @param string $css 
+   * @param string $css
    *   The value in CSS, this is a string with the value and unit.
    *
    * @return string
@@ -1626,7 +1623,7 @@ class BookExportRtfController extends ControllerBase {
   /**
    * Converter CSS font size to RTF
    *
-   * @param string $css 
+   * @param string $css
    *   The value in CSS, this is a string with the value and unit.
    *
    * @return string
@@ -1653,7 +1650,7 @@ class BookExportRtfController extends ControllerBase {
     }
     if ($css_unit == 'pt') {
       return round($css_value * 2);
-    } 
+    }
     if ($css_unit == 'px') {
       return round($css_value * 1.5);
     }
@@ -1662,5 +1659,5 @@ class BookExportRtfController extends ControllerBase {
     }
 
     return 24;
-  }  
+  }
 }
