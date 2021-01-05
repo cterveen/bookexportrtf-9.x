@@ -42,8 +42,12 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '    <td valign = "top">div</td>';
       $output .= '    <td valign = "top">page-break-before<br />page-break-after</td>';
       $output .= '    <td valign = "top">[always avoid]</br>[always avoid]</td></tr>';
+      $output .= '<tr><td valign = "top">' . t('Header') . '</td>';
+      $output .= '    <td valign = "top">h1<br />h2<br />h3<br />h4<br />h5<br />h6<br /></td>';
+      $output .= '    <td valign = "top">color<br />margin-top<br />margin-right<br />margin-bottom<br />margin-left<br />font-family<br />font-size<br />font-weight<br />text-align<br />text-decoration<br />text-decoration-color<sup>1</sup><br />text-decoration-style<sup>1</sup><br />page-break-before<br />page-break-after</td>';
+      $output .= '    <td valign = "top">[rgb(), #, color name]<br />[cm, mm, in, px, pt, pc]<br />[cm, mm, in, px, pt, pc]<br />[cm, mm, in, px, pt, pc]<br />[cm, mm, in, px, pt, pc]<br />[first value only]<br />[cm, mm, in, px, pt, pc]<br />[bold, normal]<br />[left, right, center, justify]<br />[line-through, underline, none]<br />[rgb(), #, color name]<br />[solid, double, dashed, dotted, wavy]<br />[always avoid]</br>[always avoid]</td><</td></tr>';
       $output .= '<tr><td valign = "top">' . t('Block') . '</td>';
-      $output .= '    <td valign = "top">code<br />h1<br />h2<br />h3<br />h4<br />h5<br />h6<br />li<br />p</td>';
+      $output .= '    <td valign = "top">code<br />li<br />p</td>';
       $output .= '    <td valign = "top">color<br />margin-top<br />margin-right<br />margin-bottom<br />margin-left<br />font-family<br />font-size<br />font-weight<br />text-align<br />text-decoration<br />text-decoration-color<sup>1</sup><br />text-decoration-style<sup>1</sup></td>';
       $output .= '    <td valign = "top">[rgb(), #, color name]<br />[cm, mm, in, px, pt, pc]<br />[cm, mm, in, px, pt, pc]<br />[cm, mm, in, px, pt, pc]<br />[cm, mm, in, px, pt, pc]<br />[first value only]<br />[cm, mm, in, px, pt, pc]<br />[bold, normal]<br />[left, right, center, justify]<br />[line-through, underline, none]<br />[rgb(), #, color name]<br />[solid, double, dashed, dotted, wavy]</td></tr>';
       $output .= '<tr><td valign = "top">' . t('In-line') . '</td>';
