@@ -759,7 +759,7 @@ class BookExportRtfController extends ControllerBase {
             $rtf .= "\\bullet\\tab ";
           }
           else {
-            $rtf .= " " . $array['id'] . ".\\tab ";
+            $rtf .= " " . $number . ".\\tab ";
           }
           $rtf .= $e->innertext;
 
