@@ -15,7 +15,12 @@ class BookExportRtfTest extends UnitTestCase
 {
 
   public function setUp() {
+    /*
+     * Load the HTML parser
+     */
+    include_once('../libraries/simple_html_dom/simple_html_dom.php');
     // Find the module location, either in /modules or /sites/all/modules
+
     $this->dir = "../modules/bookexportrtf";
     if (!is_dir($this->dir)) {
       $this->dir = "../sites/all/modules/bookexportrtf";
@@ -35,6 +40,30 @@ class BookExportRtfTest extends UnitTestCase
     // make a font table
     $this->bookexportrtf_fonttbl = [
       "Calibri" => 0];
+
+    // index list
+    $this->bookexpor_rtf_index_id = ['Item' => 1];
+
+    // CSS table
+    $this->bookexportrtf_css = [
+      'body' => ['font-family' => 'Calibri', 'font-size' => '12pt'],
+      'p' => ['margin-bottom' => '13px', 'text-align' => 'justify'],
+      'h1' => ['page-break-before' => 'always', 'margin-bottom' => '13px', 'font-size' => '16pt', 'font-weight' => 'bold'],
+      'h2' => ['margin-bottom' => '0px', 'font-size' => '14pt', 'font-weight' => 'bold'],
+      'h3' => ['margin-bottom' => '0px', 'font-size' => '16pt', 'font-weight' => ' bold', 'text-align' => 'center'],
+      'li' => ['margin-bottom' => '0px', 'text-align' => 'left'],
+      'th' => ['margin-left' => '2px', 'argin-right' => '2px', 'text-align' => 'left'],
+      'td' => ['margin-left' => '2px', 'margin-right' => '2px', 'text-align' => 'left'],
+      'ins' => ['text-decoration' => 'underline'],
+      's' => ['text-decoration' => 'line-through'],
+      'del' => ['text-decoration' => 'line-through'],
+      'code' => ['font-family' => 'monospace'],
+      '.header-left' => ['text-align' => 'left', 'font-weight' => 'bold'],
+      '.header-right' => ['text-align' => 'right'],
+      '.footer-left' => ['text-align' => 'left'],
+      '.footer-right' => ['text-align' => 'right'],];
+
+    $this->bookexportrtf_book_title = "Book title";
   }
 
   /**
@@ -64,826 +93,269 @@ class BookExportRtfTest extends UnitTestCase
   }
 
   /**
-   * Test getting the style from an css array
+   * Test getting the html conversion on some small elements
    */
-  public function test_get_rtf_from_css() {
-    $this->assertEquals($this->get_function("bookexportrtf_get_rtf_style_from_css", $this->testfile), $this->get_function("bookexportrtf_get_rtf_style_from_css", $this->codefile), "Failure cloning bookexportrtf_convert_length()");
+  public function test_html_converions() {
+    $this->assertEquals($this->get_function("bookexportrtf_traverse", $this->testfile), $this->get_function("bookexportrtf_traverse", $this->codefile), "Failure cloning bookexportrtf_traverse()");
+
+    $expected = [
+      "matched link" => ['<a href = "http://www.rork.nl/">www.rork.nl</a>', 'a', "www.rork.nl"],
+      "unmatched link" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\up6 \\chftn} http://www.rork.nl/}"],
+      "index anchor" => ['<a name = "indexItem"></a>an index item', 'a', "{\\*\\bkmkstart index-1}{\\*\\bkmkend index-1}an index item"],
+      "no index anchor" => ['<a name = "NoIndexItem"></a>no index item', 'a', "no index item"],
+      "newline without closing backslash" => ['<br>', 'br', "\\tab\\line\r\n"],
+      "newline with closing backslash" => ['<br />', 'br', "\\tab\\line\r\n"],
+      "div" => ['<div>text</div>', 'div', "text"],
+      "h1" => ['<h1>header</h1>', 'h1', "\\sect\\sftnrstpg\r\n{\\headerl\\pard \\ql\\b Book title\\par}\r\n{\\headerr\\pard \\qr header\\par}\r\n{\\footerl\\pard \\ql \\chpgn \\par}\r\n{\\footerr\\pard \\qr \\chpgn \\par}\r\n{\\pard\\keepn \\sa195\\fs32\\b header\\par}\r\n"],
+      "h2" => ['<h2>header</h2>', 'h2', "{\\pard\\keepn \\sa0\\fs28\\b header\\par}\r\n"],
+      "h3" => ['<h3>header</h3>', 'h3', "{\\pard\\keepn \\sa0\\qc\\fs32\\b header\\par}\r\n"],
+      "h4" => ['<h4>header</h4>', 'h4', "{\\pard\\keepn header\\par}\r\n"],
+      "h5" => ['<h5>header</h5>', 'h5', "{\\pard\\keepn header\\par}\r\n"],
+      "h6" => ['<h6>header</h6>', 'h6', "{\\pard\\keepn header\\par}\r\n"],
+      "head" => ['<head><title>page title</head>', 'head', ""],
+      "italic text" => ['<i>italic text</i>', 'i', "{\\i italic text}"],
+      "unordered list" => ['<ul><li>first item<li>second item</ul>', 'ul', "{\\pard \\sa0\\ql \\fi-360\\li720\\bullet\\tab first item\\par}\r\n{\\pard \\sa0\\ql \\fi-360\\li720\\bullet\\tab second item\\par}\r\n{\\pard\\sa0\\par}\r\n"],
+      "ordered list" => ['<ol><li>first item<li>second item</ol', 'ol', "{\\pard \\sa0\\ql \\fi-360\\li720 1.\\tab first item\\par}\r\n{\\pard \\sa0\\ql \\fi-360\\li720 2.\\tab second item\\par}\r\n{\\pard\\sa0\\par}\r\n"],
+      "p" => ['<p>Some text.</p>', 'p', "{\\pard \\sa195\\qj Some text.\\par}\r\n"],
+      "code" => ['<code>echo "foo";</code>', 'code', "{\\pard \\f1 echo \"foo\";\\par}\r\n"],
+      "s" => ['<s>strike through</s>', 's', "{\\strike strike through}"],
+      "ins" => ['<ins>insert</ins>', 'ins', "{\\ul insert}"],
+      "del" => ['<del>delete</del>', 'del', "{\\strike delete}"],
+      "span" => ['<span>span</span>', 'span', "{span}"],
+      "strong" => ['<strong>strong</strong>', 'strong', "{\\b strong}"],
+      "b" => ['<b>bold</b>', 'b', "{\\b bold}"],
+      "strike" => ['<strike>strike through</strike>', 'strike', "{\\strike strike through}"],
+      "sub" => ['<sub>sub text</sub>', 'sub', "{\\sub sub text}"],
+      "sup" => ['<sup>super text</sup>', 'sup', "{\\super super text}"],
+      "simple table" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr>', 'table', "{\\trowd\r\n\\cellx4655\r\n\\cellx9309\r\n\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
+      "u" => ['<u>underline</u>', 'u', "{\\ul underline}"],
+    ];
 
     /**
-     * Test all supported properties
-     *
-     * Although width is supported for table cells it is not handled by
-     * bookexportrtf_get_rtf_style_from_css()
+     * I should find a way to test images too...
      */
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['color' => 'blue'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for font color of p");
-    $this->assertEquals("\\cf4 ", $result[1], "Failure setting style infix for font color of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for font color of p");
 
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for default font of p");
-    $this->assertEquals("", $result[1], "Failure setting style infix for default font of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for default font of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Arial'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for new font of p");
-    $this->assertEquals("\\f1 ", $result[1], "Failure setting style infix for new font of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for new font of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri, Arial'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for two fonts of p");
-    $this->assertEquals("", $result[1], "Failure setting style infix for two font of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for two font of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['font-size' => '12pt'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for font size of p");
-    $this->assertEquals("\\fs24 ", $result[1], "Failure setting style infix for font size of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for font size of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'bold'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for bold font weight of p");
-    $this->assertEquals("\\b ", $result[1], "Failure setting style infix for bold font weight of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for bold font of weight p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'normal'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for normal font weight of p");
-    $this->assertEquals("", $result[1], "Failure setting style infix for normal font weight of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for normal font weight of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'left'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for text-align: left of p");
-    $this->assertEquals("\\ql ", $result[1], "Failure setting style infix for text-align: left of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for text-align: left of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'right'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for text-align: right of p");
-    $this->assertEquals("\\qr ", $result[1], "Failure setting style infix for text-align: right of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for text-align: right of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'center'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for text-align: center of p");
-    $this->assertEquals("\\qc ", $result[1], "Failure setting style infix for text-align: center of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for text-align: center of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'justify'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for text-align: justify of p");
-    $this->assertEquals("\\qj ", $result[1], "Failure setting style infix for text-align: justify of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for text-align: justify of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline of p");
-    $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'line-through'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for line-through of p");
-    $this->assertEquals("\\strike ", $result[1], "Failure setting style infix for line-through of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for line-through of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'none'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for no text decoration of p");
-    $this->assertEquals("", $result[1], "Failure setting style infix for no text decoration of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for no text decoration of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-color' => 'red'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline color of p");
-    $this->assertEquals("\\ulc2 ", $result[1], "Failure setting style infix for underline color of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline color of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline of p");
-    $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline style solid of p");
-    $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline style solid of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline style solid of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-style' => 'wavy'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline style without underline of p");
-    $this->assertEquals("", $result[1], "Failure setting style infix for underline style without underline of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline style without underline of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline style double of p");
-    $this->assertEquals("\\uldb ", $result[1], "Failure setting style infix for underline style double of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline style double of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline style dashed of p");
-    $this->assertEquals("\\uldash ", $result[1], "Failure setting style infix for underline style dashed  of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline style dashed  of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline style dotted of p");
-    $this->assertEquals("\\uld ", $result[1], "Failure setting style infix for underline style dotted of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline style dotted of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for underline style wavy of p");
-    $this->assertEquals("\\ulwave ", $result[1], "Failure setting style infix for underline style wavy  of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for underline style wavy of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-top' => '10px'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for margin-top of p");
-    $this->assertEquals("\\sb150 ", $result[1], "Failure setting style infix for margin-top of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for margin-top of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-right' => '10px'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for margin-right of p");
-    $this->assertEquals("\\ri150 ", $result[1], "Failure setting style infix for margin-right of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for margin-right of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-bottom' => '10px'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for margin-bottom of p");
-    $this->assertEquals("\\sa150 ", $result[1], "Failure setting style infix for margin-bottom of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for margin-bottom of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-left' => '10px'], "p");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for margin-left of p");
-    $this->assertEquals("\\li150 ", $result[1], "Failure setting style infix for margin-left of p");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for margin-left of p");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'always'], "h1");
-    $this->assertEquals("\\page\r\n", $result[0], "Failure setting style prefix for page-break-before: always of h1");
-    $this->assertEquals("", $result[1], "Failure setting style infix for age-break-before: always of h1");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-before: always of h1");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'avoid'], "h1");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: avoid of h1");
-    $this->assertEquals("", $result[1], "Failure setting style infix for age-break-before: avoid of h1");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-before: avoid of h1");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'always'], "h1");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-after: always of h1");
-    $this->assertEquals("", $result[1], "Failure setting style infix for age-break-after: always of h1");
-    $this->assertEquals("\\page\r\n", $result[2], "Failure setting style suffix for age-break-after: always of h1");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'avoid'], "h1");
-    $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-after: avoid of h1");
-    $this->assertEquals("", $result[1], "Failure setting style infix for age-break-after: avoid of h1");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: avoid of h1");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px'], "td");
-    $this->assertEquals("\\clbrdrb\\brdrw15\\brdrs \r\n", $result[0], "Failure setting style prefix for border-bottom-width of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for border-bottom-width of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for border-bottom-width of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "td");
-    $this->assertEquals("\\clbrdrb\\brdrw15\\brdrs \r\n", $result[0], "Failure setting style prefix for border-bottom-style: solid of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for border-bottom-style: solid of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for border-bottom-style: solid of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "td");
-    $this->assertEquals("\\clbrdrb\\brdrw15\\brdrdot \r\n", $result[0], "Failure setting style prefix for border-bottom-style: dotted of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for border-bottom-style: dotted of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for border-bottom-style: dotted of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "td");
-    $this->assertEquals("\\clbrdrb\\brdrw15\\brdrdash \r\n", $result[0], "Failure setting style prefix for border-bottom-style: dashed of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for border-bottom-style: dashed of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for border-bottom-style: dashed of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "td");
-    $this->assertEquals("\\clbrdrb\\brdrw15\\brdrdb \r\n", $result[0], "Failure setting style prefix for border-bottom-style: double of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for border-bottom-style: double of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for border-bottom-style: double of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "td");
-    $this->assertEquals("\\clbrdrb\\brdrw15\\brdrnone \r\n", $result[0], "Failure setting style prefix for border-bottom-style: none of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for border-bottom-style: none of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for border-bottom-style: none of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "td");
-    $this->assertEquals("\\clbrdrb\\brdrw15\\brdrnone \r\n", $result[0], "Failure setting style prefix for border-bottom-style: hidden of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for border-bottom-style: hidden of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for border-bottom-style: hidden of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'top'], "td");
-    $this->assertEquals("\\clvertalt\r\n", $result[0], "Failure setting style prefix for vertical-align: top of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for vertical-align: top of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for vertical-align: top of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'middle'], "td");
-    $this->assertEquals("\\clvertalc\r\n", $result[0], "Failure setting style prefix for vertical-align: middle of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for vertical-align: middle of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for vertical-align: middle of td");
-
-    $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'bottom'], "td");
-    $this->assertEquals("\\clvertalb\r\n", $result[0], "Failure setting style prefix for vertical-align: bottom of td");
-    $this->assertEquals("", $result[1], "Failure setting style infix for vertical-align: bottom of td");
-    $this->assertEquals("", $result[2], "Failure setting style suffix for vertical-align: bottom of td");
-
-    // Now prefix, infix and suffix are correct let's see if everything is assigned correctly
-    foreach (['div'] as $tag) {
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['color' => 'blue'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for default font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Arial'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri, Arial'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for two font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-size' => '12pt'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for font size of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'bold'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for bold font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'normal'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for normal font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'left'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for text-align: left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'right'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for text-align: right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'center'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for text-align: center of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'justify'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for text-align: justify of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'line-through'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for line-through of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'none'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for no text decoration of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-color' => 'red'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline color of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style without underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'double'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style dashed  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style wavy  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-top' => '10px'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for margin-top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-right' => '10px'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for margin-right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-bottom' => '10px'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for margin-bottom of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-left' => '10px'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for margin-left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'always'], $tag);
-      $this->assertEquals("\\page\r\n", $result[0], "Failure setting style prefix for page-break-before: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'avoid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'always'], $tag);
-      $this->assertEquals("\\page\r\n", $result[2], "Failure setting style suffix for age-break-after: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'avoid'], $tag);
-      $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-width of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: dashed of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: none of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: hidden of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'top'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'middle'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: middle of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'bottom'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: bottom of " . $tag);
+    foreach (array_keys($expected) as $test) {
+      $html = str_get_html($expected[$test][0]);
+      $e = $html->find($expected[$test][1]);
+      $this->bookexportrtf_traverse($e);
+      $result = strip_tags($html);
+      $this->assertEquals($expected[$test][2], $result , "Failure converting " . $test);
     }
-
-    foreach (['code', 'li', 'p'] as $tag) {
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['color' => 'blue'], $tag);
-      $this->assertEquals("\\cf4 ", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for default font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Arial'], $tag);
-      $this->assertEquals("\\f1 ", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri, Arial'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for two font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-size' => '12pt'], $tag);
-      $this->assertEquals("\\fs24 ", $result[1], "Failure setting style infix for font size of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'bold'], $tag);
-      $this->assertEquals("\\b ", $result[1], "Failure setting style infix for bold font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'normal'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for normal font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'left'], $tag);
-      $this->assertEquals("\\ql ", $result[1], "Failure setting style infix for text-align: left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'right'], $tag);
-      $this->assertEquals("\\qr ", $result[1], "Failure setting style infix for text-align: right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'center'], $tag);
-      $this->assertEquals("\\qc ", $result[1], "Failure setting style infix for text-align: center of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'justify'], $tag);
-      $this->assertEquals("\\qj ", $result[1], "Failure setting style infix for text-align: justify of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'line-through'], $tag);
-      $this->assertEquals("\\strike ", $result[1], "Failure setting style infix for line-through of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'none'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for no text decoration of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-color' => 'red'], $tag);
-      $this->assertEquals("\\ulc2 ", $result[1], "Failure setting style infix for underline color of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline style solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style without underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'double'], $tag);
-      $this->assertEquals("\\uldb ", $result[1], "Failure setting style infix for underline style double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], $tag);
-      $this->assertEquals("\\uldash ", $result[1], "Failure setting style infix for underline style dashed  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], $tag);
-      $this->assertEquals("\\uld ", $result[1], "Failure setting style infix for underline style dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("\\ulwave ", $result[1], "Failure setting style infix for underline style wavy  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-top' => '10px'], $tag);
-      $this->assertEquals("\\sb150 ", $result[1], "Failure setting style infix for margin-top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-right' => '10px'], $tag);
-      $this->assertEquals("\\ri150 ", $result[1], "Failure setting style infix for margin-right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-bottom' => '10px'], $tag);
-      $this->assertEquals("\\sa150 ", $result[1], "Failure setting style infix for margin-bottom of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-left' => '10px'], $tag);
-      $this->assertEquals("\\li150 ", $result[1], "Failure setting style infix for margin-left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'always'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'avoid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'always'], $tag);
-      $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'avoid'], $tag);
-      $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-width of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: dashed of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: none of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: hidden of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'top'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'middle'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: middle of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'bottom'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: bottom of " . $tag);
-    }
-
-    foreach (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as $tag) {
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['color' => 'blue'], $tag);
-      $this->assertEquals("\\cf4 ", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for default font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Arial'], $tag);
-      $this->assertEquals("\\f1 ", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri, Arial'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for two font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-size' => '12pt'], $tag);
-      $this->assertEquals("\\fs24 ", $result[1], "Failure setting style infix for font size of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'bold'], $tag);
-      $this->assertEquals("\\b ", $result[1], "Failure setting style infix for bold font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'normal'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for normal font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'left'], $tag);
-      $this->assertEquals("\\ql ", $result[1], "Failure setting style infix for text-align: left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'right'], $tag);
-      $this->assertEquals("\\qr ", $result[1], "Failure setting style infix for text-align: right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'center'], $tag);
-      $this->assertEquals("\\qc ", $result[1], "Failure setting style infix for text-align: center of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'justify'], $tag);
-      $this->assertEquals("\\qj ", $result[1], "Failure setting style infix for text-align: justify of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'line-through'], $tag);
-      $this->assertEquals("\\strike ", $result[1], "Failure setting style infix for line-through of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'none'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for no text decoration of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-color' => 'red'], $tag);
-      $this->assertEquals("\\ulc2 ", $result[1], "Failure setting style infix for underline color of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline style solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style without underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'double'], $tag);
-      $this->assertEquals("\\uldb ", $result[1], "Failure setting style infix for underline style double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], $tag);
-      $this->assertEquals("\\uldash ", $result[1], "Failure setting style infix for underline style dashed  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], $tag);
-      $this->assertEquals("\\uld ", $result[1], "Failure setting style infix for underline style dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("\\ulwave ", $result[1], "Failure setting style infix for underline style wavy  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-top' => '10px'], $tag);
-      $this->assertEquals("\\sb150 ", $result[1], "Failure setting style infix for margin-top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-right' => '10px'], $tag);
-      $this->assertEquals("\\ri150 ", $result[1], "Failure setting style infix for margin-right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-bottom' => '10px'], $tag);
-      $this->assertEquals("\\sa150 ", $result[1], "Failure setting style infix for margin-bottom of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-left' => '10px'], $tag);
-      $this->assertEquals("\\li150 ", $result[1], "Failure setting style infix for margin-left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'always'], $tag);
-      $this->assertEquals("\\page\r\n", $result[0], "Failure setting style prefix for page-break-before: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'avoid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'always'], $tag);
-      $this->assertEquals("\\page\r\n", $result[2], "Failure setting style suffix for age-break-after: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'avoid'], $tag);
-      $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-width of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: dashed of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: none of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: hidden of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'top'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'middle'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: middle of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'bottom'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: bottom of " . $tag);
-    }
-
-    foreach (['del', 'ins', 's', 'span', 'u'] as $tag) {
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['color' => 'blue'], $tag);
-      $this->assertEquals("\\cf4 ", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for default font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Arial'], $tag);
-      $this->assertEquals("\\f1 ", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri, Arial'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for two font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-size' => '12pt'], $tag);
-      $this->assertEquals("\\fs24 ", $result[1], "Failure setting style infix for font size of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'bold'], $tag);
-      $this->assertEquals("\\b ", $result[1], "Failure setting style infix for bold font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'normal'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for normal font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'left'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for text-align: left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'right'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for text-align: right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'center'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for text-align: center of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'justify'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for text-align: justify of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'line-through'], $tag);
-      $this->assertEquals("\\strike ", $result[1], "Failure setting style infix for line-through of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'none'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for no text decoration of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-color' => 'red'], $tag);
-      $this->assertEquals("\\ulc2 ", $result[1], "Failure setting style infix for underline color of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline style solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style without underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'double'], $tag);
-      $this->assertEquals("\\uldb ", $result[1], "Failure setting style infix for underline style double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], $tag);
-      $this->assertEquals("\\uldash ", $result[1], "Failure setting style infix for underline style dashed  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], $tag);
-      $this->assertEquals("\\uld ", $result[1], "Failure setting style infix for underline style dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("\\ulwave ", $result[1], "Failure setting style infix for underline style wavy  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-top' => '10px'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for margin-top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-right' => '10px'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for margin-right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-bottom' => '10px'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for margin-bottom of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-left' => '10px'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for margin-left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'always'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'avoid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'always'], $tag);
-      $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'avoid'], $tag);
-      $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-width of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: dashed of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: none of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for border-bottom-style: hidden of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'top'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'middle'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: middle of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'bottom'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for vertical-align: bottom of " . $tag);
-    }
-
-    foreach (['td', 'th'] as $tag) {
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['color' => 'blue'], $tag);
-      $this->assertEquals("\\cf4 ", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for default font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Arial'], $tag);
-      $this->assertEquals("\\f1 ", $result[1], "Failure setting style infix for new font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-family' => 'Calibri, Arial'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for two font of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-size' => '12pt'], $tag);
-      $this->assertEquals("\\fs24 ", $result[1], "Failure setting style infix for font size of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'bold'], $tag);
-      $this->assertEquals("\\b ", $result[1], "Failure setting style infix for bold font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['font-weight' => 'normal'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for normal font weight of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'left'], $tag);
-      $this->assertEquals("\\ql ", $result[1], "Failure setting style infix for text-align: left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'right'], $tag);
-      $this->assertEquals("\\qr ", $result[1], "Failure setting style infix for text-align: right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'center'], $tag);
-      $this->assertEquals("\\qc ", $result[1], "Failure setting style infix for text-align: center of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-align' => 'justify'], $tag);
-      $this->assertEquals("\\qj ", $result[1], "Failure setting style infix for text-align: justify of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'line-through'], $tag);
-      $this->assertEquals("\\strike ", $result[1], "Failure setting style infix for line-through of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'none'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for no text decoration of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-color' => 'red'], $tag);
-      $this->assertEquals("\\ulc2 ", $result[1], "Failure setting style infix for underline color of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], $tag);
-      $this->assertEquals("\\ul ", $result[1], "Failure setting style infix for underline style solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("", $result[1], "Failure setting style infix for underline style without underline of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'double'], $tag);
-      $this->assertEquals("\\uldb ", $result[1], "Failure setting style infix for underline style double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], $tag);
-      $this->assertEquals("\\uldash ", $result[1], "Failure setting style infix for underline style dashed  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], $tag);
-      $this->assertEquals("\\uld ", $result[1], "Failure setting style infix for underline style dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], $tag);
-      $this->assertEquals("\\ulwave ", $result[1], "Failure setting style infix for underline style wavy  of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-top' => '10px'], $tag);
-      $this->assertEquals("\\sb150 ", $result[1], "Failure setting style infix for margin-top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-right' => '10px'], $tag);
-      $this->assertEquals("\\ri150 ", $result[1], "Failure setting style infix for margin-right of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-bottom' => '10px'], $tag);
-      $this->assertEquals("\\sa150 ", $result[1], "Failure setting style infix for margin-bottom of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['margin-left' => '10px'], $tag);
-      $this->assertEquals("\\li150 ", $result[1], "Failure setting style infix for margin-left of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'always'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-before' => 'avoid'], $tag);
-      $this->assertEquals("", $result[0], "Failure setting style prefix for page-break-before: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'always'], $tag);
-      $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: always of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['page-break-after' => 'avoid'], $tag);
-      $this->assertEquals("", $result[2], "Failure setting style suffix for age-break-after: avoid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px'], $tag);
-      $this->assertEquals("\\clbrdrb\\brdrw15\\brdrs \r\n", $result[0], "Failure setting style prefix for border-bottom-width of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], $tag);
-      $this->assertEquals("\\clbrdrb\\brdrw15\\brdrs \r\n", $result[0], "Failure setting style prefix for border-bottom-style: solid of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], $tag);
-      $this->assertEquals("\\clbrdrb\\brdrw15\\brdrdot \r\n", $result[0], "Failure setting style prefix for border-bottom-style: dotted of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], $tag);
-      $this->assertEquals("\\clbrdrb\\brdrw15\\brdrdash \r\n", $result[0], "Failure setting style prefix for border-bottom-style: dashed of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], $tag);
-      $this->assertEquals("\\clbrdrb\\brdrw15\\brdrdb \r\n", $result[0], "Failure setting style prefix for border-bottom-style: double of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], $tag);
-      $this->assertEquals("\\clbrdrb\\brdrw15\\brdrnone \r\n", $result[0], "Failure setting style prefix for border-bottom-style: none of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], $tag);
-      $this->assertEquals("\\clbrdrb\\brdrw15\\brdrnone \r\n", $result[0], "Failure setting style prefix for border-bottom-style: hidden of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'top'], $tag);
-      $this->assertEquals("\\clvertalt\r\n", $result[0], "Failure setting style prefix for vertical-align: top of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'middle'], $tag);
-      $this->assertEquals("\\clvertalc\r\n", $result[0], "Failure setting style prefix for vertical-align: middle of " . $tag);
-
-      $result = $this->bookexportrtf_get_rtf_style_from_css(['vertical-align' => 'bottom'], $tag);
-      $this->assertEquals("\\clvertalb\r\n", $result[0], "Failure setting style prefix for vertical-align: bottom of " . $tag);
+  }
+
+  /**
+   * Test getting a css array from an element
+   */
+  public function test_get_css_from_element() {
+    $this->assertEquals($this->get_function("bookexportrtf_get_css_style_from_element", $this->testfile), $this->get_function("bookexportrtf_get_css_style_from_element", $this->codefile), "Failure cloning bookexportrtf_get_css_style_from_element()");
+
+    // this seems to be broken?
+    return;
+    $html = str_get_html('<ins>insert</ins>');
+    $e = $html->find('ins');
+    $css = $this->bookexportrtf_get_css_style_from_element($e);
+    $this->assertArrayHasKey("text-decoration", $css, "Failure getting text-decoration for ins");
+  }
+
+
+  /**
+   * Test getting the style from an css array.
+   *
+   * This should test the correct filtering of css properties and propper
+   * correct specification of rtf style tags
+   *
+   * As behoviour for elements is inherited it should not be necessary to test
+   * all possible tags, only div, p, td, span and a subset for h1 as this
+   * behaves different from p for page breaks.
+   *
+   * It's likely that the testing for non-supported properties is rather
+   * redundant here, one test should be sufficient?
+   */
+  public function test_get_rtf_from_css() {
+    $this->assertEquals($this->get_function("bookexportrtf_get_rtf_style_from_css", $this->testfile), $this->get_function("bookexportrtf_get_rtf_style_from_css", $this->codefile), "Failure cloning bookexportrtf_get_rtf_style_from_css()");
+
+    /**
+     * first key: tag
+     * second key: name of the test
+     * first value: named array of css property and values to test
+     * second value: expected prefix
+     * third value: expected infix
+     * fourth value: expected suffix
+     */
+    $expected = [
+      "div" => [
+        "font color" => [["color" => "blue"], "", "", ""],
+        "default font" => [["font-family" => "Calibri"], "", "", ""],
+        "new font" => [["font-family" => "Arial"], "", "", ""],
+        "two fonts" => [["font-family" => "Calibri, Arial"], "", "", ""],
+        "font size" => [["font-size" => "12pt"], "", "", ""],
+        "bold font weight" => [["font-weight" => "bold"], "", "", ""],
+        "normal font weight" => [["font-weight" => "normal"], "", "", ""],
+        "left aligned text" => [["text-align" => "left"], "", "", ""],
+        "right aligned text" => [["text-align" => "right"], "", "", ""],
+        "centered text" => [["text-align" => "center"], "", "", ""],
+        "justified text" => [["text-align" => "justify"], "", "", ""],
+        "underlined text" => [["text-decoration" => "underline"], "", "", ""],
+        "strike-trough" => [["text-decoration" => "line-through"], "", "", ""],
+        "no text decoration" => [["text-decoration" => "none"], "", "", ""],
+        "text decoration color" => [["text-decoration-color" => "red"], "", "", ""],
+        "text decoration solid" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "", ""],
+        "text decoration double" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "", ""],
+        "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "", ""],
+        "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "", ""],
+        "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "", ""],
+        "top margin" => [['margin-top' => '10px'], "", "", ""],
+        "right margin" => [['margin-right' => '10px'], "", "", ""],
+        "bottom margin" => [['margin-bottom' => '10px'], "", "", ""],
+        "left margin" => [['margin-left' => '10px'], "", "", ""],
+        "always break page before" => [['page-break-before' => 'always'], "\\page\r\n", "", ""],
+        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
+        "always page break after" => [['page-break-after' => 'always'], "", "", "\\page\r\n"],
+        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
+        "border bottom" => [['border-bottom-width' => '1px'], "", "", ""],
+        "border bottom style solid" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
+        "border bottom style dotted" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
+        "border bottom style dashed" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
+        "border bottom style  double" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
+        "no border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
+        "hidden border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+      ],
+      "p" => [
+        "font color" => [["color" => "blue"], "", "\\cf4 ", ""],
+        "default font" => [["font-family" => "Calibri"], "", "", ""],
+        "new font" => [["font-family" => "Arial"], "", "\\f1 ", ""],
+        "two fonts" => [["font-family" => "Calibri, Arial"], "", "", ""],
+        "font size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
+        "bold font weight" => [["font-weight" => "bold"], "", "\\b ", ""],
+        "normal font weight" => [["font-weight" => "normal"], "", "", ""],
+        "left aligned text" => [["text-align" => "left"], "", "\\ql ", ""],
+        "right aligned text" => [["text-align" => "right"], "", "\\qr ", ""],
+        "centered text" => [["text-align" => "center"], "", "\\qc ", ""],
+        "justified text" => [["text-align" => "justify"], "", "\\qj ", ""],
+        "underlined text" => [["text-decoration" => "underline"], "", "\\ul ", ""],
+        "strike-trough" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
+        "no text decoration" => [["text-decoration" => "none"], "", "", ""],
+        "text decoration color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
+        "text decoration solid" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
+        "text decoration double" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
+        "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
+        "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
+        "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "top margin" => [['margin-top' => '10px'], "", "\\sb150 ", ""],
+        "right margin" => [['margin-right' => '10px'], "", "\\ri150 ", ""],
+        "bottom margin" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
+        "left margin" => [['margin-left' => '10px'], "", "\\li150 ", ""],
+        "always break page before" => [['page-break-before' => 'always'], "", "", ""],
+        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
+        "always page break after" => [['page-break-after' => 'always'], "", "", ""],
+        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
+        "border bottom" => [['border-bottom-width' => '1px'], "", "", ""],
+        "border bottom style solid" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
+        "border bottom style dotted" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
+        "border bottom style dashed" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
+        "border bottom style  double" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
+        "no border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
+        "hidden border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+        "vertical align top" => [['vertical-align' => 'top'], "", "", ""],
+        "vertical align middle" => [['vertical-align' => 'middle'], "", "", ""],
+        "vertical align bottom" => [['vertical-align' => 'bottom'], "", "", ""],
+      ],
+      "h1" => [
+        "always break page before" => [['page-break-before' => 'always'], "\\page\r\n", "", ""],
+        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
+        "always page break after" => [['page-break-after' => 'always'], "", "", "\\page\r\n"],
+        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
+      ],
+      "td" => [
+        "font color" => [["color" => "blue"], "", "\\cf4 ", ""],
+        "default font" => [["font-family" => "Calibri"], "", "", ""],
+        "new font" => [["font-family" => "Arial"], "", "\\f1 ", ""],
+        "two fonts" => [["font-family" => "Calibri, Arial"], "", "", ""],
+        "font size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
+        "bold font weight" => [["font-weight" => "bold"], "", "\\b ", ""],
+        "normal font weight" => [["font-weight" => "normal"], "", "", ""],
+        "left aligned text" => [["text-align" => "left"], "", "\\ql ", ""],
+        "right aligned text" => [["text-align" => "right"], "", "\\qr ", ""],
+        "centered text" => [["text-align" => "center"], "", "\\qc ", ""],
+        "justified text" => [["text-align" => "justify"], "", "\\qj ", ""],
+        "underlined text" => [["text-decoration" => "underline"], "", "\\ul ", ""],
+        "strike-trough" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
+        "no text decoration" => [["text-decoration" => "none"], "", "", ""],
+        "text decoration color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
+        "text decoration solid" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
+        "text decoration double" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
+        "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
+        "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
+        "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "top margin" => [['margin-top' => '10px'], "", "\\sb150 ", ""],
+        "right margin" => [['margin-right' => '10px'], "", "\\ri150 ", ""],
+        "bottom margin" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
+        "left margin" => [['margin-left' => '10px'], "", "\\li150 ", ""],
+        "always break page before" => [['page-break-before' => 'always'], "", "", ""],
+        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
+        "always page break after" => [['page-break-after' => 'always'], "", "", ""],
+        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
+        "border bottom" => [['border-bottom-width' => '1px'], "\\clbrdrb\\brdrw15\\brdrs \r\n", "", ""],
+        "border bottom style solid" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "\\clbrdrb\\brdrw15\\brdrs \r\n", "", ""],
+        "border bottom style dotted" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "\\clbrdrb\\brdrw15\\brdrdot \r\n", "", ""],
+        "border bottom style dashed" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "\\clbrdrb\\brdrw15\\brdrdash \r\n", "", ""],
+        "border bottom style  double" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "\\clbrdrb\\brdrw15\\brdrdb \r\n", "", ""],
+        "no border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "\\clbrdrb\\brdrw15\\brdrnone \r\n", "", ""],
+        "hidden border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "\\clbrdrb\\brdrw15\\brdrnone \r\n", "", ""],
+        "vertical align top" => [['vertical-align' => 'top'], "\\clvertalt\r\n", "", ""],
+        "vertical align middle" => [['vertical-align' => 'middle'], "\\clvertalc\r\n", "", ""],
+        "vertical align bottom" => [['vertical-align' => 'bottom'], "\\clvertalb\r\n", "", ""],
+      ],
+      "span" => [
+        "font color" => [["color" => "blue"], "", "\\cf4 ", ""],
+        "default font" => [["font-family" => "Calibri"], "", "", ""],
+        "new font" => [["font-family" => "Arial"], "", "\\f1 ", ""],
+        "two fonts" => [["font-family" => "Calibri, Arial"], "", "", ""],
+        "font size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
+        "bold font weight" => [["font-weight" => "bold"], "", "\\b ", ""],
+        "normal font weight" => [["font-weight" => "normal"], "", "", ""],
+        "left aligned text" => [["text-align" => "left"], "", "", ""],
+        "right aligned text" => [["text-align" => "right"], "", "", ""],
+        "centered text" => [["text-align" => "center"], "", "", ""],
+        "justified text" => [["text-align" => "justify"], "", "", ""],
+        "underlined text" => [["text-decoration" => "underline"], "", "\\ul ", ""],
+        "strike-trough" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
+        "no text decoration" => [["text-decoration" => "none"], "", "", ""],
+        "text decoration color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
+        "text decoration solid" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
+        "text decoration double" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
+        "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
+        "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
+        "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "top margin" => [['margin-top' => '10px'], "", "", ""],
+        "right margin" => [['margin-right' => '10px'], "", "", ""],
+        "bottom margin" => [['margin-bottom' => '10px'], "", "", ""],
+        "left margin" => [['margin-left' => '10px'], "", "", ""],
+        "always break page before" => [['page-break-before' => 'always'], "", "", ""],
+        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
+        "always page break after" => [['page-break-after' => 'always'], "", "", ""],
+        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
+        "border bottom" => [['border-bottom-width' => '1px'], "", "", ""],
+        "border bottom style solid" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
+        "border bottom style dotted" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
+        "border bottom style dashed" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
+        "border bottom style  double" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
+        "no border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
+        "hidden border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+        "vertical align top" => [['vertical-align' => 'top'], "", "", ""],
+        "vertical align middle" => [['vertical-align' => 'middle'], "", "", ""],
+        "vertical align bottom" => [['vertical-align' => 'bottom'], "", "", ""],
+      ],
+    ];
+
+    foreach (array_keys($expected) as $tag) {
+      foreach (array_keys($expected[$tag]) as $test) {
+        $result = $this->bookexportrtf_get_rtf_style_from_css($expected[$tag][$test][0], $tag);
+        $this->assertEquals($expected[$tag][$test][1], $result[0], "Failure setting style prefix for " . $test . " of " . $tag);
+        $this->assertEquals($expected[$tag][$test][2], $result[1], "Failure setting style infix for " . $test . " of " . $tag);
+        $this->assertEquals($expected[$tag][$test][3], $result[2], "Failure setting style suffix for " . $test . " of " . $tag);
+      }
     }
 
   }
@@ -956,6 +428,488 @@ class BookExportRtfTest extends UnitTestCase
     $this->assertEquals(150, $this->bookexportrtf_convert_font_size("100px"), "Failure to convert font size (px)");
     $this->assertEquals(200, $this->bookexportrtf_convert_font_size("100pt"), "Failure to convert font size (pt)");
     $this->assertEquals(2400, $this->bookexportrtf_convert_font_size("100pc"), "Failure to convert font size (pc)");
+  }
+
+  /**
+   * Below are supportive functions for the tests.
+   */
+
+  /**
+   * Get code of a function from a file
+   *
+   * @param string $function
+   *   The name of the function
+   *
+   * @param string $file
+   *   The location of the file
+   *
+   * @return string
+   *   The code of the string
+   */
+  private function get_function($function, $file) {
+    $file = file_get_contents($file);
+    $start = strpos($file,  " function " . $function);
+    $end = strpos($file, "\n  }", $start);
+
+    $code = substr($file, $start+1, $end - $start);
+    return $code;
+  }
+
+  /**
+   * Dummy function to test get_function
+   */
+  private function get_test_function() {
+    //foo
+  }
+
+  /**
+   * Below are copies of the functions from NookExportRtfController used to
+   * test their correct working.
+   */
+
+
+  /**
+   * Traverse the HTML tree and change HTML into RTF.
+   *
+   * HTML parsers may not spawn demons but if you use them to replace HTML tags
+   * by RTF code they do attract gremlins as the parser gets in trouble with
+   * nested tags (which occur a lot in HTML). Probably the parser is losing
+   * the structure. This is solved by going through the tree and start
+   * replacing tags at the branches working up to the main stem.
+   *
+   * @param array $elements
+   *   The elements from the HTML tree from which to start.
+   */
+
+  private function bookexportrtf_traverse($elements) {
+    foreach ($elements as $e) {
+      if ($e->first_child()) {
+        $children = $e->children();
+        $this->bookexportrtf_traverse($children);
+      }
+
+      // No children anymore, start changing tags.
+      $tag = $e->tag;
+
+      switch($tag) {
+        case 'a':
+          if ($e->href) {
+            // Link, replace with footnote.
+            $url = $e->href;
+            $title = $e->innertext;
+
+            // Do not add a footnote if the link and label are the same.
+            if (preg_match("|^(https?://)?(mailto:)?" . $title . "/?$|", $url)) {
+              $e->outertext = $title;
+            }
+            else {
+              $e->outertext = $title . "{\\footnote \\pard {\\up6 \\chftn} " . $url . "}";
+            }
+          }
+          else if ($e->name) {
+            // Anchor, replace for the index, ignore others.
+            if (preg_match("|^index|", $e->name)) {
+              $label = substr($e->name, 5);
+              $anchor = "index-" . $this->bookexpor_rtf_index_id[$label];
+              $e->outertext = "{\\*\\bkmkstart " . $anchor . "}{\\*\\bkmkend ".$anchor."}";
+            }
+          }
+          break;
+
+        case 'br':
+          // Add a tab before the newline otherwise justified last lines will
+          // be justified instead of left aligned.
+          $e->outertext = "\\tab\\line\r\n";
+          break;
+
+       case 'div':
+         // For divs I'm only interested in page-break-before and
+         // page-break-after other style elements will be enherited by its
+         // children.
+
+         $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+         $e->outertext = $style[0] . $e->innertext . $style[2];
+          break;
+
+        case 'h1':
+          // Start of a new chapter, thus start a new section.
+          //
+          // Page break behaves erratic around section breaks. Page break is
+          // handled by css which adds \\page. However, in Libre office
+          // \\sect\\sbknone seem to overwrite \\page as \\sect\\sbknone\\page
+          // does not lead to a page break. Also \\sect\\page leads to one page
+          // break instead of two.
+          //
+          // Ignore the CSS engine and add \\sbknone unless a page break should
+          // be added before H1.
+
+          $title = $e->innertext;
+          $css = $this->bookexportrtf_get_css_style_from_element($e);
+          $rtf = "\\sect";
+          if (!array_key_exists('page-break-before', $css)) {
+            $rtf .= "\\sbknone";
+          }
+          elseif (trim($css['page-break-before']) != "always") {
+            $rtf .= "\\sbknone";
+          }
+          else {
+            unset($css['page-break-before']);
+          }
+          $rtf .= "\\sftnrstpg\r\n";
+
+          $style = $this->bookexportrtf_get_rtf_style_from_css($css);
+          $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-left");
+          $rtf .= "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
+          $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-right");
+          $rtf .= "{\\headerr\\pard ". $header_style[1] . $title . "\\par}\r\n";
+          $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-left");
+          $rtf .= "{\\footerl\\pard ". $footer_style[1] . "\\chpgn \\par}\r\n";
+          $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-right");
+          $rtf .= "{\\footerr\\pard ". $footer_style[1] . "\\chpgn \\par}\r\n";
+
+          // If the chapter starts with a number add a bookmark for the toc.
+          if (preg_match("|^(\d+)\.\s|", $title, $match)) {
+            $chapter = $match[1];
+            $rtf .= "{\\*\\bkmkstart chapter".$chapter."}{\\*\\bkmkend chapter".$chapter."}\r\n";
+          }
+          $rtf .= "{\\pard\\keepn " . $style[1] . $title . "\\par}\r\n" . $style[2];
+
+          $e->outertext = $rtf;
+          break;
+
+        case 'h2':
+        case 'h3':
+        case 'h4':
+        case 'h5':
+        case 'h6':
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          $e->outertext = $style[0] . "{\\pard\\keepn " . $style[1] . $e->innertext . "\\par}\r\n" . $style[2];
+          break;
+
+        case 'head':
+          $e->outertext = "";
+          break;
+
+        case 'i':
+          $e->outertext = "{\\i " . $e->innertext . "}";
+          break;
+
+        case 'img':
+          $url = $e->src;
+
+          // Change relative urls to absolute urls
+          if (isset($this->bookexportrtf_base_url) & substr($url, 0, 4) != "http") {
+            $url = $this->bookexportrtf_base_url . $url;
+          }
+
+          $string = file_get_contents($url);
+
+          $info = getimagesizefromstring($string);
+
+          $width = $info[0];
+          $height = $info[1];
+
+          $picwidth = $this->bookexportrtf_convert_length($width . "px");
+          $picheight = $this->bookexportrtf_convert_length($height . "px");
+
+          // Scale to page width if wider
+          // Page width A4 - margins = 11909 - 2x1800  = 8309 twips
+          if ($picwidth > 8309) {
+            $ratio = $width/$height;
+            $picwidth = 8309;
+            $picheight = round($picwidth / $ratio);
+          }
+
+          $scalex = 100;
+          $scaley = 100;
+
+          $rtf = "{";
+          $rtf .= "\\pard{\\pict\\picw" . $width;
+          $rtf .= "\\pich" . $height;
+          $rtf .= "\\picwgoal" . $picwidth;
+          $rtf .= "\\pichgoal" . $picheight;
+          $rtf .= "\\picscalex" . $scalex;
+          $rtf .= "\\picscaley" . $scaley;
+
+
+          // Set image type.
+          switch($info['mime']) {
+            case "image/png":
+              $rtf .= "\\pngblip\r\n";
+              break;
+            case "image/jpeg":
+              $rtf .= "\\jpegblip\r\n";
+              break;
+            case "image/gif":
+              // RTF does not support gif, convert to png
+              $img = imagecreatefromstring($string);
+              ob_start();
+              imagepng($img);
+              $string = ob_get_contents(); // read from buffer
+              ob_end_clean(); // delete buffer
+              $rtf .= "\\pngblip\r\n";
+          }
+
+          $hex = bin2hex($string);
+          $hex = wordwrap($hex, 80, "\r\n", TRUE);
+
+          $rtf .= $hex;
+          $rtf .= "\r\n}\\par}\r\n";
+
+          $e->outertext = $rtf;
+          break;
+
+        case 'li':
+          // This might be a bit dirty but as I'm not going to make elaborate
+          // list structures I feel confident working from li backwards and
+          // strip out the list-tags later.
+
+          $depth = 0;
+          $type = "ul";
+          $number = 1;
+          $last = 1;
+
+          // Type, level
+          $p = $e->parent();
+          while($p) {
+            if ($p->tag == "ul" | $p->tag == "ol") {
+              if ($depth == 0) {
+                $type = $p->tag;
+              }
+              $depth++;
+            }
+            $p = $p->parent();
+          }
+          // Item number
+          $s = $e->prev_sibling();
+          while($s) {
+            if ($s->tag == "li") {
+              $number++;
+            }
+            $s = $s->prev_sibling();
+          }
+          // Last item?
+          $s = $e->next_sibling();
+          while($s) {
+            if ($s->tag == "li") {
+              $last = 0;
+              break;
+            }
+            $s = $s->next_sibling();
+          }
+
+          $rtf = "";
+
+          // If the first item of a nested list close the current paragraph.
+          if ($depth > 1 & $number == 1) {
+            $rtf .= "\\par}\r\n";
+          }
+
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          $rtf .= "{\\pard " . $style[1];
+
+          $firstindent = -360;
+          $lineindent = 720 * $depth;
+
+          $rtf .= "\\fi" . $firstindent . "\\li". $lineindent;
+          if ($type == "ul") {
+            $rtf .= "\\bullet\\tab ";
+          }
+          else {
+            $rtf .= " " . $number . ".\\tab ";
+          }
+          $rtf .= $e->innertext;
+
+          // Finish the paragraph unless it's the last item in a nested list
+
+          /**
+           * @todo Text after the nested list will be included in the last item
+           * of the nested list. That should not be the case.
+           */
+
+          if ($last != 1 | $depth == 1) {
+            $rtf .= "\\par}\r\n";
+          }
+          if ($depth == 1 & $last == 1) {
+            // Add some empty space after the list.
+             $rtf .= "{\\pard\\sa0\\par}\r\n";
+          }
+          $e->outertext = $rtf;
+          break;
+
+        case 'code':
+        case 'p':
+          // These are all paragraphs with specific markup
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          $e->outertext = "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n";
+          break;
+
+        case 's':
+        case 'del':
+        case 'ins':
+        case 'span':
+          // These are inline elements with specific markup
+
+          // Remove the author information.
+          $class = $e->class;
+          if ($class == "field field--name-title field--type-string field--label-hidden") {
+            // label
+            $e->outertext = "";
+          }
+          elseif ($class == "field field--name-uid field--type-entity-reference field--label-hidden") {
+            // author
+            $e->outertext = "";
+          }
+          elseif ($class == "field field--name-created field--type-created field--label-hidden") {
+            // publication date
+            $e->outertext = "";
+          }
+          else {
+            $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+            $e->outertext = "{" . $style[1] . $e->innertext . "}";
+          }
+          break;
+
+        case 'strong':
+        case 'b':
+          $e->outertext = "{\\b " . $e->innertext . "}";
+          break;
+
+        case 'strike':
+          $e->outertext = "{\\strike " . $e->innertext . "}";
+          break;
+
+        case 'sub':
+          $e->outertext = "{\\sub " . $e->innertext . "}";
+          break;
+
+        case 'sup':
+          $e->outertext = "{\\super " . $e->innertext . "}";
+          break;
+
+        case 'tbody':
+          // Tables are a little bit more complicated than lists. The best way
+          // to do this is to store the whole table and then recreate it.
+
+          $num_rows = 0;
+          $num_cols = 0;
+          $table;
+          $colwidth = [];
+
+          // Retrieve table contents and some required specifications.
+          $rows = $e->children();
+          foreach ($rows as $r) {
+            if ($r->tag != "tr") {
+              continue;
+            }
+            $num_rows++;
+            $cells = $r->children();
+            $cur_cols = 0;
+            foreach ($cells as $c) {
+              if ($c->tag != 'td' & $c->tag != 'th') {
+                continue;
+              }
+              $cur_cols++;
+              $table[$num_rows][$cur_cols]['element'] = $c;
+              $table[$num_rows][$cur_cols]['innertext'] = $c->innertext;
+              $table[$num_rows][$cur_cols]['col'] = $cur_cols;
+              if ($c->colspan) {
+                $table[$num_rows][$cur_cols]['colspan'] = $c->colspan;
+              }
+              else {
+                $table[$num_rows][$cur_cols]['colspan'] = 1;
+              }
+
+              $css = $this->bookexportrtf_get_css_style_from_element($c);
+              $style = $this->bookexportrtf_get_rtf_style_from_css($css, $c->tag);
+
+              $table[$num_rows][$cur_cols]['style'] = $css;
+              $table[$num_rows][$cur_cols]['style_prefix'] = $style[0];
+              $table[$num_rows][$cur_cols]['style_infix'] = $style[1];
+
+              if (array_key_exists('width', $css)) {
+                $colwidth[$cur_cols] = $this->bookexportrtf_convert_length($css['width']);
+              }
+
+              // correct cur_cols for colspan.
+              $cur_cols += $table[$num_rows][$cur_cols]['colspan']-1;
+            }
+            if ($cur_cols > $num_cols) {
+              $num_cols = $cur_cols;
+            }
+          }
+
+          // Calculate column width
+          // 1. Determined width already defined
+          // 2. Space out evenly over the remaining columns
+          $colright = [];
+          $widthdefined = 0;
+          $auto = 0;
+          for ($col = 1; $col <= $num_cols; $col++) {
+            if (array_key_exists($col, $colwidth)) {
+              $widthdefined += $colwidth[$col];
+            }
+            else {
+              $auto++;
+            }
+          }
+
+          // Standard pagewidth = 13909 - 2x1800 = 9309
+          $autowidth = (9309 - $widthdefined)/$auto;
+
+          $colleft = 0;
+          for ($col = 1; $col <= $num_cols; $col++) {
+            if (array_key_exists($col, $colwidth)) {
+              $colleft += $colwidth[$col];
+            }
+            else {
+              $colleft += $autowidth;
+            }
+            $colright[$col] = ceil($colleft);
+          }
+
+          // Build the table
+          $rtf = "{";
+          foreach ($table as $row) {
+            $rtf .= "\\trowd\r\n";
+
+            // First itteration to define cell style.
+            foreach ($row as $cell) {
+              $rtf .= $cell['style_prefix'];
+              $rtf .= "\\cellx";
+              $rtf .= $colright[$cell['col']+$cell['colspan']-1];
+              $rtf .= "\r\n";
+            }
+
+            // Second iteration to make the cells themselves.
+            foreach ($row as $cell) {
+              $rtf .= "\\intbl{";
+              $rtf .= $cell['style_infix'];
+              $rtf .= $cell['innertext'];
+              $rtf .= "}\\cell\r\n";
+            }
+            $rtf .= "\\row\r\n";
+          }
+          $rtf .= "}\r\n{\\pard\\sa0\\par}\r\n";
+
+          $e->outertext = $rtf;
+          break;
+
+        case 'u':
+          // switch to css to get the correct style (and color?);
+          $css = $this->bookexportrtf_get_css_style_from_element($e);
+          if (!array_key_exists('text-decoration', $css)) {
+            $css['text-decoration'] = "underline";
+          }
+          else {
+            if (!preg_match("|underline|", $css['text-decoration'])) {
+              $css['text-decoration'] = $css['text-decoration'] . " underline";
+            }
+          }
+          $style = $this->bookexportrtf_get_rtf_style_from_css($css, 'u');
+          $e->outertext = "{" . $style[1] . $e->innertext . "}";
+      }
+    }
   }
 
   /**
@@ -1251,32 +1205,143 @@ class BookExportRtfTest extends UnitTestCase
   }
 
   /**
-   * Get code of a function from a file
+   * Get the style for an HTML element.
    *
-   * @param string $function
-   *   The name of the function
+   * @param object $e
+   *   An element from the html tree.
    *
-   * @param string $file
-   *   The location of the file
-   *
-   * @return string
-   *   The code of the string
+   * @return array
+   *   The list of css properties and values.
    */
-  private function get_function($function, $file) {
-    $file = file_get_contents($file);
-    $start = strpos($file,  " function " . $function);
-    $end = strpos($file, "\n  }", $start);
+  private function bookexportrtf_get_css_style_from_element($e) {
+    // A list of inhereted css properties.
+    // Most of these aren't used but keep them in for completeness.
+    $css_inherit = [
+      'border-collapse' => 1,
+      'border-spacing' => 1,
+      'caption-side' => 1,
+      'color' => 1,
+      'cursor' => 1,
+      'direction' => 1,
+      'empty-cells' => 1,
+      'font-family' => 1,
+      'font-size' => 1,
+      'font-style' => 1,
+      'font-variant' => 1,
+      'font-weight' => 1,
+      'font-size-adjust' => 1,
+      'font-stretch' => 1,
+      'font' => 1,
+      'letter-spacing' => 1,
+      'line-height' => 1,
+      'list-style-image' => 1,
+      'list-style-position' => 1,
+      'list-style-type' => 1,
+      'list-style' => 1,
+      'orphans' => 1,
+      'quotes' => 1,
+      'tab-size' => 1,
+      'text-align' => 1,
+      'text-align-last' => 1,
+      'text-decoration-color' => 1,
+      'text-indent' => 1,
+      'text-justify' => 1,
+      'text-shadow' => 1,
+      'text-transform' => 1,
+      'visibility' => 1,
+      'white-space' => 1,
+      'widows' => 1,
+      'word-break' => 1,
+      'word-spacing' => 1,
+      'word-wrap' => 1];
 
-    $code = substr($file, $start+1, $end - $start);
-    return $code;
+    $css = [];
+
+    $depth = 0;
+
+    // Start the cascade looking upwards from the element to get all the css.
+    while ($e) {
+      // Get css from the element's style attribute.
+      $style = $e->style;
+      if ($style != '') {
+        $style = ".attribute {" . $style . " }";
+        $css_parser = new CssParser();
+        $css_parser->load_string($style);
+        $css_parser->parse();
+        $my_css = $css_parser->parsed;
+
+        foreach (array_keys($my_css['main']['.attribute']) as $property) {
+          // inheritance by default
+          if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
+            $css[$property] = $my_css['main']['.attribute'][$property];
+          }
+          // inheritance by setting
+          if (array_key_exists($property, $css)) {
+            if (trim($css[$property]) == 'inherit') {
+              $css[$property] = $my_css['main']['.attribute'][$property];
+            }
+          }
+        }
+      }
+
+      // Get css associated with the element's id, classes and element.
+      $id = '#' . $e->id;
+      $classes = explode(' ', $e->class);
+      $classes = array_map(static function ($class) {
+            return "." . $class;
+        }, $classes);
+      $tag = $e->tag;
+
+      foreach (array_merge([$id], $classes, [$tag]) as $selector) {
+        if (array_key_exists($selector, $this->bookexportrtf_css)) {
+          foreach (array_keys($this->bookexportrtf_css[$selector]) as $property) {
+            // inheritance by default
+            if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
+              $css[$property] = $this->bookexportrtf_css[$selector][$property];
+            }
+            // inheritance by setting
+            if (array_key_exists($property, $css)) {
+              if (trim($css[$property]) == 'inherit') {
+                $css[$property] = $this->bookexportrtf_css[$selector][$property];
+              }
+            }
+          }
+        }
+      }
+
+      $e = $e->parent();
+      $depth--;
+    }
+
+    return $css;
   }
 
   /**
-   * Dummy function to test get_function
+   * Retrieve the RTF markup from an HTML element.
+   *
+   * @param object $element
+   *   An HTML element
+   *
+   * @return array
+   *   The RTF markup as prefix, infix and suffix.
    */
-  private function get_test_function() {
-    //foo
+  private function bookexportrtf_get_rtf_style_from_element($element) {
+    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_get_css_style_from_element($element), $element->tag);
   }
+
+  /**
+   * Retrieve the RTF markup from an CSS selector.
+   *
+   * @param string $selector
+   *   The CSS selector.
+   *
+   * @return array
+   *   The RTF markup as prefix, infix and suffix.
+   */
+  private function bookexportrtf_get_rtf_style_from_selector($selector) {
+    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_css[$selector]);
+  }
+
 
   /**
    * Convert CSS colors to a position in the colortable
