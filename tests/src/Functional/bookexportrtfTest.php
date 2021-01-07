@@ -2,6 +2,7 @@
 
 namespace Drupal\Tests\bookexportrtf;
 
+use CssParser;
 use Drupal\Tests\UnitTestCase;
 
 /**
@@ -16,9 +17,11 @@ class BookExportRtfTest extends UnitTestCase
 
   public function setUp() {
     /*
-     * Load the HTML parser
+     * Load the HTML and CSS parsers
      */
     include_once('../libraries/simple_html_dom/simple_html_dom.php');
+    include_once('../libraries/schepp-css-parser/parser.php');
+
     // Find the module location, either in /modules or /sites/all/modules
 
     $this->dir = "../modules/bookexportrtf";
@@ -150,14 +153,85 @@ class BookExportRtfTest extends UnitTestCase
   public function test_get_css_from_element() {
     $this->assertEquals($this->get_function("bookexportrtf_get_css_style_from_element", $this->testfile), $this->get_function("bookexportrtf_get_css_style_from_element", $this->codefile), "Failure cloning bookexportrtf_get_css_style_from_element()");
 
-    // this seems to be broken?
-    return;
-    $html = str_get_html('<ins>insert</ins>');
-    $e = $html->find('ins');
-    $css = $this->bookexportrtf_get_css_style_from_element($e);
-    $this->assertArrayHasKey("text-decoration", $css, "Failure getting text-decoration for ins");
-  }
+    // some extra css selectors for testing
+    $this->bookexportrtf_css['#own-id'] = ['font-weight' => 'bold'];
+    $this->bookexportrtf_css['.own-class'] = ['text-decoration' => 'underline'];
+    $this->bookexportrtf_css['#parent-id'] = ['font-weight' => 'bold'];
+    $this->bookexportrtf_css['.parent-class'] = ['font-family' => 'Arial'];
+    $this->bookexportrtf_css['.test-inheritance'] = [
+      "border-bottom-style" => "solid",
+      "border-bottom-width" => "1px",
+      "border-left-style" => "solid",
+      "border-left-width" => "1px",
+      "border-right-style" => "solid",
+      "border-right-width" => "1px",
+      "border-top-style" => "solid",
+      "border-top-width" => "1px",
+      "color" => "blue",
+      "font-family" => "Arial",
+      "font-size" => "12pt",
+      "font-weight" => "bold",
+      "margin-bottom" => "10px",
+      "margin-left" => "10px",
+      "margin-right" => "10px",
+      "margin-top" => "10px",
+      "page-break-before" => "always",
+      "page-break-after" => "always",
+      "text-align" => "right",
+      "text-decoration" => "underline",
+      "text-decoration-color" => "blue",
+      "text-decoration-style" => "wavy",
+      "vertical-align" => "middle",
+      "width" => "100px",
+    ];
 
+    $html = str_get_html('<span id = "own-id" class = "own-class" style = "color: blue">insert</span>');
+    $e = $html->find('span');
+    $css = $this->bookexportrtf_get_css_style_from_element($e[0]);
+    $this->assertArrayHasKey("font-weight", $css, "Failure getting style from own id");
+    $this->assertArrayHasKey("text-decoration", $css, "Failure getting style from own class");
+    $this->assertArrayHasKey("color", $css, "Failure getting style from own attribute");
+
+    $html = str_get_html('<p id = "parent-id" class = "parent-class" style = "color: blue"><span>insert</span></p>');
+    $e = $html->find('span');
+    $css = $this->bookexportrtf_get_css_style_from_element($e[0]);
+    $this->assertArrayHasKey("font-weight", $css, "Failure getting style from parent id");
+    $this->assertArrayHasKey("font-family", $css, "Failure getting style from parent class");
+    $this->assertArrayHasKey("color", $css, "Failure getting style from parent attribute");
+
+    $html = str_get_html('<p class = "test-inheritance"><span>insert</span></p>');
+    $e = $html->find('span');
+    $css = $this->bookexportrtf_get_css_style_from_element($e[0]);
+    $this->assertFalse(array_key_exists("border-bottom-style", $css), "Failure getting inheritance of border-bottom-style");
+    $this->assertFalse(array_key_exists("border-bottom-width", $css), "Failure getting inheritance of border-bottom-width");
+    $this->assertFalse(array_key_exists("border-left-style", $css), "Failure getting inheritance of border-left-style");
+    $this->assertFalse(array_key_exists("border-left-width", $css), "Failure getting inheritance of border-left-width");
+    $this->assertFalse(array_key_exists("border-right-style", $css), "Failure getting inheritance of border-right-style");
+    $this->assertFalse(array_key_exists("border-right-width", $css), "Failure getting inheritance of border-right-width");
+    $this->assertFalse(array_key_exists("border-top-style", $css), "Failure getting inheritance of border-top-style");
+    $this->assertFalse(array_key_exists("border-top-width", $css), "Failure getting inheritance of border-top-width");
+    // color already tested
+    // font-family already tested
+    $this->assertArrayHasKey("font-size", $css, "Failure getting inheritance of font-size");
+    // font-weight already tested
+    $this->assertFalse(array_key_exists("margin-bottom", $css), "Failure getting inheritance of margin-bottom");
+    $this->assertFalse(array_key_exists("margin-left", $css), "Failure getting inheritance of margin-left");
+    $this->assertFalse(array_key_exists("margin-right", $css), "Failure getting inheritance of margin-right");
+    $this->assertFalse(array_key_exists("margin-top", $css), "Failure getting inheritance of margin-top");
+    $this->assertFalse(array_key_exists("page-break-after", $css), "Failure getting inheritance of page-break-after");
+    $this->assertFalse(array_key_exists("page-break-before", $css), "Failure getting inheritance of page-break-before");
+    $this->assertArrayHasKey("text-align", $css, "Failure getting inheritance of text-align");
+    $this->assertFalse(array_key_exists("text-decoration", $css), "Failure getting inheritance of text-decoration");
+    $this->assertArrayHasKey("text-decoration-color", $css, "Failure getting inheritance of text-decoration-color");
+    $this->assertFalse(array_key_exists("text-decoration-style", $css), "Failure getting inheritance of text-decoration-style");
+    $this->assertFalse(array_key_exists("vertical-align", $css), "Failure getting inheritance of vertical-align");
+    $this->assertFalse(array_key_exists("width", $css), "Failure getting inheritance of width");
+
+    $html = str_get_html('<p style = "text-decoration: underline;"><span style = "text-decoration: inherit">insert</span></p>');
+    $e = $html->find('span');
+    $css = $this->bookexportrtf_get_css_style_from_element($e[0]);
+    $this->assertArrayHasKey("text-decoration", $css, "Failure getting inheritance on inherit key word");
+  }
 
   /**
    * Test getting the style from an css array.
