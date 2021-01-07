@@ -44,8 +44,11 @@ class BookExportRtfTest extends UnitTestCase
     $this->bookexportrtf_fonttbl = [
       "Calibri" => 0];
 
-    // index list
-    $this->bookexpor_rtf_index_id = ['Item' => 1];
+    // Declare an array for the toc
+    $this->bookexportrtf_toc = [];
+
+    // Declare an array for the index
+    $this->bookexportrtf_index = [];
 
     // CSS table
     $css_parser = new CssParser();
@@ -98,13 +101,13 @@ class BookExportRtfTest extends UnitTestCase
     $expected = [
       "matched link" => ['<a href = "http://www.rork.nl/">www.rork.nl</a>', 'a', "www.rork.nl"],
       "unmatched link" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\super \\chftn} http://www.rork.nl/}"],
-      "index anchor" => ['<a name = "indexItem"></a>an index item', 'a', "{\\*\\bkmkstart index-1}{\\*\\bkmkend index-1}an index item"],
+      "index anchor" => ['<a name = "indexItem"></a>an index item', 'a', "{\\*\\bkmkstart index-0}{\\*\\bkmkend index-0}an index item"],
       "no index anchor" => ['<a name = "NoIndexItem"></a>no index item', 'a', "no index item"],
       "article" => ['<article><p>some text</p></article>', 'article', "\\sect\\sftnrstp\r\n{\\pard \\sa195\\qj some text\\par}\r\n"],
       "newline without closing backslash" => ['<br>', 'br', "\\tab\\line\r\n"],
       "newline with closing backslash" => ['<br />', 'br', "\\tab\\line\r\n"],
       "div" => ['<div>text</div>', 'div', "text"],
-      "h1" => ['<h1>header</h1>', 'h1', "{\\headerl\\pard \\ql\\b Book title\\par}\r\n{\\headerr\\pard \\qr header\\par}\r\n{\\footerl\\pard \\ql \\chpgn \\par}\r\n{\\footerr\\pard \\qr \\chpgn \\par}\r\n{\\pard \\sa195\\fs32\\b\\keepn header\\par}\r\n"],
+      "h1" => ['<h1>header</h1>', 'h1', "{\\headerl\\pard \\ql\\b Book title\\par}\r\n{\\headerr\\pard \\qr header\\par}\r\n{\\footerl\\pard \\ql \\chpgn \\par}\r\n{\\footerr\\pard \\qr \\chpgn \\par}\r\n{\\*\\bkmkstart chapter1}{\\*\\bkmkend chapter1}\r\n{\\pard \\sa195\\fs32\\b\\keepn header\\par}\r\n"],
       "h2" => ['<h2>header</h2>', 'h2', "{\\pard \\sa0\\fs28\\b\\keepn header\\par}\r\n"],
       "h3" => ['<h3>header</h3>', 'h3', "{\\pard \\sa0\\qc\\fs32\\b\\keepn header\\par}\r\n"],
       "h4" => ['<h4>header</h4>', 'h4', "{\\pard \\keepn header\\par}\r\n"],
@@ -584,8 +587,15 @@ class BookExportRtfTest extends UnitTestCase
             // Anchor, replace for the index, ignore others.
             if (preg_match("|^index|", $e->name)) {
               $label = substr($e->name, 5);
-              $anchor = "index-" . $this->bookexpor_rtf_index_id[$label];
-              $e->outertext = "{\\*\\bkmkstart " . $anchor . "}{\\*\\bkmkend ".$anchor."}";
+              if (!array_key_exists($label, $this->bookexportrtf_index)) {
+                $iid = count($this->bookexportrtf_index);
+                $this->bookexportrtf_index[$label] = $iid;
+                $e->outertext = "{\\*\\bkmkstart index-" . $iid . "}{\\*\\bkmkend index-".$iid."}";
+              }
+              else {
+                // Double entry, remove
+                $e->outertext = "";
+              }
             }
           }
           break;
@@ -626,8 +636,9 @@ class BookExportRtfTest extends UnitTestCase
           $title = $e->innertext;
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          $rtf = $style[0];
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-left");
-          $rtf = "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
+          $rtf .= "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-right");
           $rtf .= "{\\headerr\\pard ". $header_style[1] . $title . "\\par}\r\n";
           $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-left");
@@ -635,11 +646,11 @@ class BookExportRtfTest extends UnitTestCase
           $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-right");
           $rtf .= "{\\footerr\\pard ". $footer_style[1] . "\\chpgn \\par}\r\n";
 
-          // If the chapter starts with a number add a bookmark for the toc.
-          if (preg_match("|^(\d+)\.\s|", $title, $match)) {
-            $chapter = $match[1];
-            $rtf .= "{\\*\\bkmkstart chapter".$chapter."}{\\*\\bkmkend chapter".$chapter."}\r\n";
-          }
+          //
+          array_push($this->bookexportrtf_toc, $title);
+          $tid = count($this->bookexportrtf_toc);
+          $rtf .= "{\\*\\bkmkstart chapter".$tid."}{\\*\\bkmkend chapter".$tid."}\r\n";
+
           $rtf .= "{\\pard " . $style[1] . $title . "\\par}\r\n" . $style[2];
 
           $e->outertext = $rtf;
@@ -1115,7 +1126,7 @@ class BookExportRtfTest extends UnitTestCase
    *   The RTF markup as prefix, infix and suffix.
    */
   private function bookexportrtf_get_rtf_style_from_selector($selector) {
-    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_css[$selector]);
+    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_css[$selector], $selector);
   }
 
   /**
@@ -1124,93 +1135,103 @@ class BookExportRtfTest extends UnitTestCase
    * @param array $css
    *   The css property-value pairs.
    *
-   * @param string $tag
-   *   An optional tag of the HTML element.
+   * @param string $selector
+   *   A selector
    *
    * @return array
    *   The RTF markup as prefix, infix and suffix.
    */
-  private function bookexportrtf_get_rtf_style_from_css($css, $tag = NULL) {
-    if (!empty($tag)) {
-      // there are 4 basic style elements:
-      //   div: page break
-      //   p: font, margin etc.
-      //   td: like p, but with borders
-      //   span: font only
-      // several other elements have similar properties to p, td or span.
+  private function bookexportrtf_get_rtf_style_from_css($css, $selector) {
+    if (empty($selector)) {
+      return ["","","",""];
+    }
 
-      $supported = [
-        'div' => [
-          'page-break-before' => 1,
-          'page-break-after' => 1,],
-        'p' => [
-          'color' => 1,
-          'font-family' => 1,
-          'font-size' => 1,
-          'font-weight' => 1,
-          'margin-top' => 1,
-          'margin-right' => 1,
-          'margin-bottom' => 1,
-          'margin-left' => 1,
-          'text-align' => 1,
-          'text-decoration' => 1,
-          'text-decoration-color' => 1,
-          'text-decoration-style' => 1,],
-        'td' => [
-          'color' => 1,
-          'border-bottom-style' => 1,
-          'border-bottom-width' => 1,
-          'border-left-style' => 1,
-          'border-left-width' => 1,
-          'border-right-style' => 1,
-          'border-right-width' => 1,
-          'border-top-style' => 1,
-          'border-top-width' => 1,
-          'margin-top' => 1,
-          'margin-right' => 1,
-          'margin-bottom' => 1,
-          'margin-left' => 1,
-          'font-family' => 1,
-          'font-size' => 1,
-          'font-weight' => 1,
-          'text-align' => 1,
-          'text-decoration' => 1,
-          'text-decoration-color' => 1,
-          'text-decoration-style' => 1,
-          'vertical-align' => 1,],
-        'span' => [
-          'color' => 1,
-          'font-family' => 1,
-          'font-size' => 1,
-          'font-weight' => 1,
-          'text-decoration' => 1,
-          'text-decoration-color' => 1,
-          'text-decoration-style' => 1,],];
+    // there are 4 basic style elements:
+    //   div: page break
+    //   p: font, margin etc.
+    //   td: like p, but with borders
+    //   span: font only
+    // several other elements have similar properties to p, td or span.
 
-      // headers also support page breaks
-      $supported['h1'] = $supported['p'];
-      $supported['h1']['page-break-before'] = 1;
-      $supported['h1']['page-break-after'] = 1;
+    $supported = [
+      'div' => [
+        'page-break-before' => 1,
+        'page-break-after' => 1,],
+      'p' => [
+        'color' => 1,
+        'font-family' => 1,
+        'font-size' => 1,
+        'font-weight' => 1,
+        'margin-top' => 1,
+        'margin-right' => 1,
+        'margin-bottom' => 1,
+        'margin-left' => 1,
+        'text-align' => 1,
+        'text-decoration' => 1,
+        'text-decoration-color' => 1,
+        'text-decoration-style' => 1,],
+      'td' => [
+        'color' => 1,
+        'border-bottom-style' => 1,
+        'border-bottom-width' => 1,
+        'border-left-style' => 1,
+        'border-left-width' => 1,
+        'border-right-style' => 1,
+        'border-right-width' => 1,
+        'border-top-style' => 1,
+        'border-top-width' => 1,
+        'margin-top' => 1,
+        'margin-right' => 1,
+        'margin-bottom' => 1,
+        'margin-left' => 1,
+        'font-family' => 1,
+        'font-size' => 1,
+        'font-weight' => 1,
+        'text-align' => 1,
+        'text-decoration' => 1,
+        'text-decoration-color' => 1,
+        'text-decoration-style' => 1,
+        'vertical-align' => 1,],
+      'span' => [
+        'color' => 1,
+        'font-family' => 1,
+        'font-size' => 1,
+        'font-weight' => 1,
+        'text-decoration' => 1,
+        'text-decoration-color' => 1,
+        'text-decoration-style' => 1,],];
 
-      // inherit
-      $supported['article'] = $supported['div'];
-      $supported['h2'] = $supported['h1'];
-      $supported['h3'] = $supported['h1'];
-      $supported['h4'] = $supported['h1'];
-      $supported['h5'] = $supported['h1'];
-      $supported['h6'] = $supported['h1'];
-      $supported['code'] = $supported['p'];
-      $supported['li'] = $supported['p'];
-      $supported['th'] = $supported['td'];
-      $supported['del'] = $supported['span'];
-      $supported['s'] = $supported['span'];
-      $supported['ins'] = $supported['span'];
-      $supported['u'] = $supported['span'];
+    // headers also support page breaks
+    $supported['h1'] = $supported['p'];
+    $supported['h1']['page-break-before'] = 1;
+    $supported['h1']['page-break-after'] = 1;
 
-      foreach (array_keys($css) as $selector) {
-        if (!array_key_exists(trim($selector), $supported[$tag])) {
-          unset($css[$selector]);
-        }
+    // inherit
+    $supported['article'] = $supported['div'];
+    $supported['h2'] = $supported['h1'];
+    $supported['h3'] = $supported['h1'];
+    $supported['h4'] = $supported['h1'];
+    $supported['h5'] = $supported['h1'];
+    $supported['h6'] = $supported['h1'];
+    $supported['code'] = $supported['p'];
+    $supported['li'] = $supported['p'];
+    $supported['.header-left'] = $supported['p'];
+    $supported['.header-right'] = $supported['p'];
+    $supported['.footer-left'] = $supported['p'];
+    $supported['.footer-right'] = $supported['p'];
+    $supported['th'] = $supported['td'];
+    $supported['del'] = $supported['span'];
+    $supported['s'] = $supported['span'];
+    $supported['ins'] = $supported['span'];
+    $supported['u'] = $supported['span'];
+
+    if (!array_key_exists($selector, $supported)) {
+      return ["","",""];
+    }
+
+    foreach (array_keys($css) as $property) {
+      if (!array_key_exists(trim($property), $supported[$selector])) {
+        unset($css[$property]);
       }
     }
 
@@ -1340,7 +1361,7 @@ class BookExportRtfTest extends UnitTestCase
 
     // Page breaks
     if (array_key_exists('page-break-before', $css)) {
-      if ($tag == 'article') {
+      if ($selector == 'article') {
         // articles come with a section break, this also supports avoid
         switch (trim($css['page-break-before'])) {
           case "always":
@@ -1364,7 +1385,7 @@ class BookExportRtfTest extends UnitTestCase
         $rtf_suffix .= "\\page";
       }
       if (trim($css['page-break-after']) == "avoid") {
-        if ($tag != "div" & $tag != "article") {
+        if ($selector != "div" & $selector != "article") {
           // divs and article can't be attached to the next part
           $rtf_infix .= "\\keepn";
         }
