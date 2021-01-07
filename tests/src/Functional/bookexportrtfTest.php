@@ -48,24 +48,18 @@ class BookExportRtfTest extends UnitTestCase
     $this->bookexpor_rtf_index_id = ['Item' => 1];
 
     // CSS table
-    $this->bookexportrtf_css = [
-      'body' => ['font-family' => 'Calibri', 'font-size' => '12pt'],
-      'p' => ['margin-bottom' => '13px', 'text-align' => 'justify'],
-      'h1' => ['page-break-before' => 'always', 'margin-bottom' => '13px', 'font-size' => '16pt', 'font-weight' => 'bold'],
-      'h2' => ['margin-bottom' => '0px', 'font-size' => '14pt', 'font-weight' => 'bold'],
-      'h3' => ['margin-bottom' => '0px', 'font-size' => '16pt', 'font-weight' => ' bold', 'text-align' => 'center'],
-      'li' => ['margin-bottom' => '0px', 'text-align' => 'left'],
-      'th' => ['margin-left' => '2px', 'argin-right' => '2px', 'text-align' => 'left'],
-      'td' => ['margin-left' => '2px', 'margin-right' => '2px', 'text-align' => 'left'],
-      'ins' => ['text-decoration' => 'underline'],
-      's' => ['text-decoration' => 'line-through'],
-      'del' => ['text-decoration' => 'line-through'],
-      'code' => ['font-family' => 'monospace'],
-      '.header-left' => ['text-align' => 'left', 'font-weight' => 'bold'],
-      '.header-right' => ['text-align' => 'right'],
-      '.footer-left' => ['text-align' => 'left'],
-      '.footer-right' => ['text-align' => 'right'],];
+    $css_parser = new CssParser();
+    $css_parser->load_files($this->dir . "/css/bookexportrtf.rtf.css");
+    $css_parser->parse();
+    $css = $css_parser->parsed;
 
+    foreach (array_keys($css['main']) as $selector) {
+      foreach(array_keys($css['main'][$selector]) as $property) {
+        $this->bookexportrtf_css[$selector][$property] = $css['main'][$selector][$property];
+      }
+    }
+
+    // Book title
     $this->bookexportrtf_book_title = "Book title";
   }
 
@@ -98,23 +92,24 @@ class BookExportRtfTest extends UnitTestCase
   /**
    * Test getting the html conversion on some small elements
    */
-  public function test_html_converions() {
+  public function test_html_conversions() {
     $this->assertEquals($this->get_function("bookexportrtf_traverse", $this->testfile), $this->get_function("bookexportrtf_traverse", $this->codefile), "Failure cloning bookexportrtf_traverse()");
 
     $expected = [
       "matched link" => ['<a href = "http://www.rork.nl/">www.rork.nl</a>', 'a', "www.rork.nl"],
-      "unmatched link" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\up6 \\chftn} http://www.rork.nl/}"],
+      "unmatched link" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\super \\chftn} http://www.rork.nl/}"],
       "index anchor" => ['<a name = "indexItem"></a>an index item', 'a', "{\\*\\bkmkstart index-1}{\\*\\bkmkend index-1}an index item"],
       "no index anchor" => ['<a name = "NoIndexItem"></a>no index item', 'a', "no index item"],
+      "article" => ['<article><p>some text</p></article>', 'article', "\\sect\\sftnrstp\r\n{\\pard \\sa195\\qj some text\\par}\r\n"],
       "newline without closing backslash" => ['<br>', 'br', "\\tab\\line\r\n"],
       "newline with closing backslash" => ['<br />', 'br', "\\tab\\line\r\n"],
       "div" => ['<div>text</div>', 'div', "text"],
-      "h1" => ['<h1>header</h1>', 'h1', "\\sect\\sftnrstpg\r\n{\\headerl\\pard \\ql\\b Book title\\par}\r\n{\\headerr\\pard \\qr header\\par}\r\n{\\footerl\\pard \\ql \\chpgn \\par}\r\n{\\footerr\\pard \\qr \\chpgn \\par}\r\n{\\pard\\keepn \\sa195\\fs32\\b header\\par}\r\n"],
-      "h2" => ['<h2>header</h2>', 'h2', "{\\pard\\keepn \\sa0\\fs28\\b header\\par}\r\n"],
-      "h3" => ['<h3>header</h3>', 'h3', "{\\pard\\keepn \\sa0\\qc\\fs32\\b header\\par}\r\n"],
-      "h4" => ['<h4>header</h4>', 'h4', "{\\pard\\keepn header\\par}\r\n"],
-      "h5" => ['<h5>header</h5>', 'h5', "{\\pard\\keepn header\\par}\r\n"],
-      "h6" => ['<h6>header</h6>', 'h6', "{\\pard\\keepn header\\par}\r\n"],
+      "h1" => ['<h1>header</h1>', 'h1', "{\\headerl\\pard \\ql\\b Book title\\par}\r\n{\\headerr\\pard \\qr header\\par}\r\n{\\footerl\\pard \\ql \\chpgn \\par}\r\n{\\footerr\\pard \\qr \\chpgn \\par}\r\n{\\pard \\sa195\\fs32\\b\\keepn header\\par}\r\n"],
+      "h2" => ['<h2>header</h2>', 'h2', "{\\pard \\sa0\\fs28\\b\\keepn header\\par}\r\n"],
+      "h3" => ['<h3>header</h3>', 'h3', "{\\pard \\sa0\\qc\\fs32\\b\\keepn header\\par}\r\n"],
+      "h4" => ['<h4>header</h4>', 'h4', "{\\pard \\keepn header\\par}\r\n"],
+      "h5" => ['<h5>header</h5>', 'h5', "{\\pard \\keepn header\\par}\r\n"],
+      "h6" => ['<h6>header</h6>', 'h6', "{\\pard \\keepn header\\par}\r\n"],
       "head" => ['<head><title>page title</head>', 'head', ""],
       "italic text" => ['<i>italic text</i>', 'i', "{\\i italic text}"],
       "unordered list" => ['<ul><li>first item<li>second item</ul>', 'ul', "{\\pard \\sa0\\ql \\fi-360\\li720\\bullet\\tab first item\\par}\r\n{\\pard \\sa0\\ql \\fi-360\\li720\\bullet\\tab second item\\par}\r\n{\\pard\\sa0\\par}\r\n"],
@@ -130,7 +125,7 @@ class BookExportRtfTest extends UnitTestCase
       "strike" => ['<strike>strike through</strike>', 'strike', "{\\strike strike through}"],
       "sub" => ['<sub>sub text</sub>', 'sub', "{\\sub sub text}"],
       "sup" => ['<sup>super text</sup>', 'sup', "{\\super super text}"],
-      "simple table" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr>', 'table', "{\\trowd\r\n\\cellx4655\r\n\\cellx9309\r\n\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
+      "simple table" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr>', 'table', "{\\trowd\r\n\\cellx4655\r\n\\cellx9309\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
       "u" => ['<u>underline</u>', 'u', "{\\ul underline}"],
     ];
 
@@ -284,7 +279,7 @@ class BookExportRtfTest extends UnitTestCase
         "bottom margin" => [['margin-bottom' => '10px'], "", "", ""],
         "left margin" => [['margin-left' => '10px'], "", "", ""],
         "always break page before" => [['page-break-before' => 'always'], "\\page\r\n", "", ""],
-        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
+        "avoid page break before" => [['page-break-before' => 'avoid'], "", "", ""],
         "always page break after" => [['page-break-after' => 'always'], "", "", "\\page\r\n"],
         "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
         "border bottom" => [['border-bottom-width' => '1px'], "", "", ""],
@@ -337,9 +332,14 @@ class BookExportRtfTest extends UnitTestCase
       ],
       "h1" => [
         "always break page before" => [['page-break-before' => 'always'], "\\page\r\n", "", ""],
-        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
+        "void page break before" => [['page-break-before' => 'auto'], "", "", ""],
         "always page break after" => [['page-break-after' => 'always'], "", "", "\\page\r\n"],
-        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
+        "void page break before" => [['page-break-after' => 'auto'], "", "", ""],
+        "avoid page break after" => [['page-break-after' => 'avoid'], "", "\\keepn ", ""],
+      ],
+      "article" => [
+        "always break page before" => [['page-break-before' => 'always'], "", "\\sbkpage ", ""],
+        "avoid break page before" => [['page-break-before' => 'avoid'], "", "\\sbknone ", ""],
       ],
       "td" => [
         "font color" => [["color" => "blue"], "", "\\cf4 ", ""],
@@ -577,7 +577,7 @@ class BookExportRtfTest extends UnitTestCase
               $e->outertext = $title;
             }
             else {
-              $e->outertext = $title . "{\\footnote \\pard {\\up6 \\chftn} " . $url . "}";
+              $e->outertext = $title . "{\\footnote \\pard {\\super \\chftn} " . $url . "}";
             }
           }
           else if ($e->name) {
@@ -588,6 +588,23 @@ class BookExportRtfTest extends UnitTestCase
               $e->outertext = "{\\*\\bkmkstart " . $anchor . "}{\\*\\bkmkend ".$anchor."}";
             }
           }
+          break;
+
+        case 'article':
+          // get the depth and add it to the class
+          $depth = 1;
+          $p = $e->parent();
+          while($p) {
+            if ($p->tag == 'article') {
+              $depth++;
+            }
+            $p = $p->parent();
+          }
+
+          $e->class .= " article-depth-" . $depth;
+
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          $e->outertext = "\\sect\\sftnrstp" . $style[1] . "\r\n" . $e->innertext . $style[2];
           break;
 
         case 'br':
@@ -606,34 +623,11 @@ class BookExportRtfTest extends UnitTestCase
           break;
 
         case 'h1':
-          // Start of a new chapter, thus start a new section.
-          //
-          // Page break behaves erratic around section breaks. Page break is
-          // handled by css which adds \\page. However, in Libre office
-          // \\sect\\sbknone seem to overwrite \\page as \\sect\\sbknone\\page
-          // does not lead to a page break. Also \\sect\\page leads to one page
-          // break instead of two.
-          //
-          // Ignore the CSS engine and add \\sbknone unless a page break should
-          // be added before H1.
-
           $title = $e->innertext;
-          $css = $this->bookexportrtf_get_css_style_from_element($e);
-          $rtf = "\\sect";
-          if (!array_key_exists('page-break-before', $css)) {
-            $rtf .= "\\sbknone";
-          }
-          elseif (trim($css['page-break-before']) != "always") {
-            $rtf .= "\\sbknone";
-          }
-          else {
-            unset($css['page-break-before']);
-          }
-          $rtf .= "\\sftnrstpg\r\n";
 
-          $style = $this->bookexportrtf_get_rtf_style_from_css($css);
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-left");
-          $rtf .= "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
+          $rtf = "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-right");
           $rtf .= "{\\headerr\\pard ". $header_style[1] . $title . "\\par}\r\n";
           $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-left");
@@ -646,7 +640,7 @@ class BookExportRtfTest extends UnitTestCase
             $chapter = $match[1];
             $rtf .= "{\\*\\bkmkstart chapter".$chapter."}{\\*\\bkmkend chapter".$chapter."}\r\n";
           }
-          $rtf .= "{\\pard\\keepn " . $style[1] . $title . "\\par}\r\n" . $style[2];
+          $rtf .= "{\\pard " . $style[1] . $title . "\\par}\r\n" . $style[2];
 
           $e->outertext = $rtf;
           break;
@@ -657,7 +651,7 @@ class BookExportRtfTest extends UnitTestCase
         case 'h5':
         case 'h6':
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
-          $e->outertext = $style[0] . "{\\pard\\keepn " . $style[1] . $e->innertext . "\\par}\r\n" . $style[2];
+          $e->outertext = $style[0] . "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n" . $style[2];
           break;
 
         case 'head':
@@ -957,7 +951,7 @@ class BookExportRtfTest extends UnitTestCase
 
             // Second iteration to make the cells themselves.
             foreach ($row as $cell) {
-              $rtf .= "\\intbl{";
+              $rtf .= "\\pard\\intbl{";
               $rtf .= $cell['style_infix'];
               $rtf .= $cell['innertext'];
               $rtf .= "}\\cell\r\n";
@@ -984,6 +978,144 @@ class BookExportRtfTest extends UnitTestCase
           $e->outertext = "{" . $style[1] . $e->innertext . "}";
       }
     }
+  }
+
+  /**
+   * Get the style for an HTML element.
+   *
+   * @param object $e
+   *   An element from the html tree.
+   *
+   * @return array
+   *   The list of css properties and values.
+   */
+  private function bookexportrtf_get_css_style_from_element($e) {
+    // A list of inhereted css properties.
+    // Most of these aren't used but keep them in for completeness.
+    $css_inherit = [
+      'border-collapse' => 1,
+      'border-spacing' => 1,
+      'caption-side' => 1,
+      'color' => 1,
+      'cursor' => 1,
+      'direction' => 1,
+      'empty-cells' => 1,
+      'font-family' => 1,
+      'font-size' => 1,
+      'font-style' => 1,
+      'font-variant' => 1,
+      'font-weight' => 1,
+      'font-size-adjust' => 1,
+      'font-stretch' => 1,
+      'font' => 1,
+      'letter-spacing' => 1,
+      'line-height' => 1,
+      'list-style-image' => 1,
+      'list-style-position' => 1,
+      'list-style-type' => 1,
+      'list-style' => 1,
+      'orphans' => 1,
+      'quotes' => 1,
+      'tab-size' => 1,
+      'text-align' => 1,
+      'text-align-last' => 1,
+      'text-decoration-color' => 1,
+      'text-indent' => 1,
+      'text-justify' => 1,
+      'text-shadow' => 1,
+      'text-transform' => 1,
+      'visibility' => 1,
+      'white-space' => 1,
+      'widows' => 1,
+      'word-break' => 1,
+      'word-spacing' => 1,
+      'word-wrap' => 1];
+
+    $css = [];
+
+    $depth = 0;
+
+    // Start the cascade looking upwards from the element to get all the css.
+    while ($e) {
+      // Get css from the element's style attribute.
+      $style = $e->style;
+      if ($style != '') {
+        $style = ".attribute {" . $style . " }";
+        $css_parser = new CssParser();
+        $css_parser->load_string($style);
+        $css_parser->parse();
+        $my_css = $css_parser->parsed;
+
+        foreach (array_keys($my_css['main']['.attribute']) as $property) {
+          // inheritance by default
+          if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
+            $css[$property] = $my_css['main']['.attribute'][$property];
+          }
+          // inheritance by setting
+          if (array_key_exists($property, $css)) {
+            if (trim($css[$property]) == 'inherit') {
+              $css[$property] = $my_css['main']['.attribute'][$property];
+            }
+          }
+        }
+      }
+
+      // Get css associated with the element's id, classes and element.
+      $id = '#' . $e->id;
+      $classes = explode(' ', $e->class);
+      $classes = array_map(static function ($class) {
+            return "." . $class;
+        }, $classes);
+      $tag = $e->tag;
+
+      foreach (array_merge([$id], $classes, [$tag]) as $selector) {
+        if (array_key_exists($selector, $this->bookexportrtf_css)) {
+          foreach (array_keys($this->bookexportrtf_css[$selector]) as $property) {
+            // inheritance by default
+            if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
+              $css[$property] = $this->bookexportrtf_css[$selector][$property];
+            }
+            // inheritance by setting
+            if (array_key_exists($property, $css)) {
+              if (trim($css[$property]) == 'inherit') {
+                $css[$property] = $this->bookexportrtf_css[$selector][$property];
+              }
+            }
+          }
+        }
+      }
+
+      $e = $e->parent();
+      $depth--;
+    }
+
+    return $css;
+  }
+
+  /**
+   * Retrieve the RTF markup from an HTML element.
+   *
+   * @param object $element
+   *   An HTML element
+   *
+   * @return array
+   *   The RTF markup as prefix, infix and suffix.
+   */
+  private function bookexportrtf_get_rtf_style_from_element($element) {
+    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_get_css_style_from_element($element), $element->tag);
+  }
+
+  /**
+   * Retrieve the RTF markup from an CSS selector.
+   *
+   * @param string $selector
+   *   The CSS selector.
+   *
+   * @return array
+   *   The RTF markup as prefix, infix and suffix.
+   */
+  private function bookexportrtf_get_rtf_style_from_selector($selector) {
+    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_css[$selector]);
   }
 
   /**
@@ -1061,6 +1193,7 @@ class BookExportRtfTest extends UnitTestCase
       $supported['h1']['page-break-after'] = 1;
 
       // inherit
+      $supported['article'] = $supported['div'];
       $supported['h2'] = $supported['h1'];
       $supported['h3'] = $supported['h1'];
       $supported['h4'] = $supported['h1'];
@@ -1207,14 +1340,35 @@ class BookExportRtfTest extends UnitTestCase
 
     // Page breaks
     if (array_key_exists('page-break-before', $css)) {
-      if (trim($css['page-break-before']) == "always") {
+      if ($tag == 'article') {
+        // articles come with a section break, this also supports avoid
+        switch (trim($css['page-break-before'])) {
+          case "always":
+            $rtf_infix .= "\\sbkpage";
+            break;
+
+          case "avoid":
+            $rtf_infix .= "\\sbknone";
+            break;
+
+        }
+      }
+      else {
+        if (trim($css['page-break-before']) == "always") {
           $rtf_prefix .= "\\page";
-       }
+        }
+      }
     }
     if (array_key_exists('page-break-after', $css)) {
       if (trim($css['page-break-after']) == "always") {
-          $rtf_suffix .= "\\page";
-       }
+        $rtf_suffix .= "\\page";
+      }
+      if (trim($css['page-break-after']) == "avoid") {
+        if ($tag != "div" & $tag != "article") {
+          // divs and article can't be attached to the next part
+          $rtf_infix .= "\\keepn";
+        }
+      }
     }
 
     // Tables
@@ -1277,145 +1431,6 @@ class BookExportRtfTest extends UnitTestCase
     }
     return [$rtf_prefix, $rtf_infix, $rtf_suffix];
   }
-
-  /**
-   * Get the style for an HTML element.
-   *
-   * @param object $e
-   *   An element from the html tree.
-   *
-   * @return array
-   *   The list of css properties and values.
-   */
-  private function bookexportrtf_get_css_style_from_element($e) {
-    // A list of inhereted css properties.
-    // Most of these aren't used but keep them in for completeness.
-    $css_inherit = [
-      'border-collapse' => 1,
-      'border-spacing' => 1,
-      'caption-side' => 1,
-      'color' => 1,
-      'cursor' => 1,
-      'direction' => 1,
-      'empty-cells' => 1,
-      'font-family' => 1,
-      'font-size' => 1,
-      'font-style' => 1,
-      'font-variant' => 1,
-      'font-weight' => 1,
-      'font-size-adjust' => 1,
-      'font-stretch' => 1,
-      'font' => 1,
-      'letter-spacing' => 1,
-      'line-height' => 1,
-      'list-style-image' => 1,
-      'list-style-position' => 1,
-      'list-style-type' => 1,
-      'list-style' => 1,
-      'orphans' => 1,
-      'quotes' => 1,
-      'tab-size' => 1,
-      'text-align' => 1,
-      'text-align-last' => 1,
-      'text-decoration-color' => 1,
-      'text-indent' => 1,
-      'text-justify' => 1,
-      'text-shadow' => 1,
-      'text-transform' => 1,
-      'visibility' => 1,
-      'white-space' => 1,
-      'widows' => 1,
-      'word-break' => 1,
-      'word-spacing' => 1,
-      'word-wrap' => 1];
-
-    $css = [];
-
-    $depth = 0;
-
-    // Start the cascade looking upwards from the element to get all the css.
-    while ($e) {
-      // Get css from the element's style attribute.
-      $style = $e->style;
-      if ($style != '') {
-        $style = ".attribute {" . $style . " }";
-        $css_parser = new CssParser();
-        $css_parser->load_string($style);
-        $css_parser->parse();
-        $my_css = $css_parser->parsed;
-
-        foreach (array_keys($my_css['main']['.attribute']) as $property) {
-          // inheritance by default
-          if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
-            $css[$property] = $my_css['main']['.attribute'][$property];
-          }
-          // inheritance by setting
-          if (array_key_exists($property, $css)) {
-            if (trim($css[$property]) == 'inherit') {
-              $css[$property] = $my_css['main']['.attribute'][$property];
-            }
-          }
-        }
-      }
-
-      // Get css associated with the element's id, classes and element.
-      $id = '#' . $e->id;
-      $classes = explode(' ', $e->class);
-      $classes = array_map(static function ($class) {
-            return "." . $class;
-        }, $classes);
-      $tag = $e->tag;
-
-      foreach (array_merge([$id], $classes, [$tag]) as $selector) {
-        if (array_key_exists($selector, $this->bookexportrtf_css)) {
-          foreach (array_keys($this->bookexportrtf_css[$selector]) as $property) {
-            // inheritance by default
-            if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
-              $css[$property] = $this->bookexportrtf_css[$selector][$property];
-            }
-            // inheritance by setting
-            if (array_key_exists($property, $css)) {
-              if (trim($css[$property]) == 'inherit') {
-                $css[$property] = $this->bookexportrtf_css[$selector][$property];
-              }
-            }
-          }
-        }
-      }
-
-      $e = $e->parent();
-      $depth--;
-    }
-
-    return $css;
-  }
-
-  /**
-   * Retrieve the RTF markup from an HTML element.
-   *
-   * @param object $element
-   *   An HTML element
-   *
-   * @return array
-   *   The RTF markup as prefix, infix and suffix.
-   */
-  private function bookexportrtf_get_rtf_style_from_element($element) {
-    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_get_css_style_from_element($element), $element->tag);
-  }
-
-  /**
-   * Retrieve the RTF markup from an CSS selector.
-   *
-   * @param string $selector
-   *   The CSS selector.
-   *
-   * @return array
-   *   The RTF markup as prefix, infix and suffix.
-   */
-  private function bookexportrtf_get_rtf_style_from_selector($selector) {
-    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_css[$selector]);
-  }
-
 
   /**
    * Convert CSS colors to a position in the colortable
