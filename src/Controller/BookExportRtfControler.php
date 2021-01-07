@@ -184,85 +184,15 @@ class BookExportRtfController extends ControllerBase {
     // Declare the colortable, no need to set a default.
     $this->bookexportrtf_colortbl = [];
 
-    // Generate the footer.
-    //
-    // Start with the footer to grab the index. This is required to make the
-    // right bookmarks during the content conversion.
-    //
-    // Footer
-    // - index
+    // Declare an array for the toc
+    $this->bookexportrtf_toc = [];
 
-    $footer = "";
-
-    // index
-    $anchors = $html->find('a[name]');
-    $terms = [];
-    foreach ($anchors as $a) {
-      $label = $a->name;
-      if (preg_match("|^index|", $label)) {
-        $label = substr($label, 5);
-        array_push($terms, $label);
-      }
-    }
-    sort($terms);
-
-    if (count($terms) > 0) {
-      $css = $this->bookexportrtf_get_css_style_from_element($toc[0]);
-      $style = $this->bookexportrtf_get_rtf_style_from_css($css);
-
-      // Section break, without page break unless defined in the style.
-      $footer .= "\\sect";
-      if (!array_key_exists('page-break-before', $css)) {
-        $footer .= "\\sbknone";
-      }
-      elseif (trim($css['page-break-before']) != "always") {
-        $footer .= "\\sbknone";
-      }
-      else {
-        unset($css['page-break-before']);
-      }
-      $footer .= "{\\headerl\\pard\\ql {\b ".$this->bookexportrtf_book_title."}\\par}\r\n";
-      $footer .= "{\\headerr\\pard\\qr Index\\par}\r\n";
-      $footer .= "{\\footerr\\pard\\qr \\chpgn \\par}\r\n";
-      $footer .= "{\\footerl\\pard\\ql \\chpgn \\par}\r\n";
-      $footer .= "{\\pard " . $style[1];
-      $footer .= "{\\*\\bkmkstart chapterIndex}{\\*\\bkmkend chapterIndex}Index";
-      $footer .= "\\par}\r\n";
-      $footer .= "\\sect\\sbknone\\cols2\r\n";
-
-      $cur_initial = "";
-
-      $this->bookexpor_rtf_index_id = [];
-      $i = 0;
-
-      foreach ($terms as $t) {
-        if (!isset($this->bookexpor_rtf_index_id[$t])) {
-          $this->bookexpor_rtf_index_id[$t] = $i;
-          $anchor = "index-" . $i ;
-          $i++;
-
-          $initial = substr($t, 0, 1);
-          if (is_numeric($initial)) {
-            $initial = "#";
-          }
-          if ($initial != $cur_initial) {
-            if ($cur_initial != "") {
-              $footer .= "\\par}\r\n";
-            }
-            $footer .= "{\\pard\\fs28{\\b " . $initial . "\\b}\\par}\r\n";
-            $footer .= "{\\pard\\ql ";
-            $cur_initial = $initial;
-          }
-          $footer .= $t . " {\\field{\*\\fldinst PAGEREF ".$anchor."}}\\line\r\n";
-        }
-      }
-      $footer .= "\\par}\r\n";
-      $footer .= $style[2];
-    }
+    // Declare an array for the index
+    $this->bookexportrtf_index = [];
 
     // Generate the content.
     //
-    // This is done second because the font and color tables may be appended
+    // This is done first because the font and color tables may be appended
     // during the conversion process.
     //
     // The actual conversion is done by bookexportrtf_traverse.
@@ -270,6 +200,52 @@ class BookExportRtfController extends ControllerBase {
     $elements = $html->find('html');
     $this->bookexportrtf_traverse($elements);
     $content = strip_tags($html);
+
+    // Generate the footer
+    //
+    // This is done second so the header goes to the end of the toc
+    //
+    // Footer
+    // - index
+
+    $footer = "";
+
+    if (count($this->bookexportrtf_index) > 0) {
+      // mock a chapter
+      $elements = $html->find("article");
+      $section_style = $this->bookexportrtf_get_rtf_style_from_element($elements[1]);
+      $footer .= "\\sect"  . $section_style[1] . "\r\n";
+
+      // make a nice title
+      $header_html = str_get_html('<html><body><h1>Index</h1></body></html>');
+      $e = $header_html->find('html');
+      $this->bookexportrtf_traverse($e);
+      $footer .= strip_tags($header_html);
+
+      $footer .= "\\sect\\sbknone\\cols2\r\n";
+
+      ksort($this->bookexportrtf_index);
+      $cur_initial = "";
+
+      foreach (array_keys($this->bookexportrtf_index) as $label) {
+        $anchor = "index-" . $this->bookexportrtf_index[$label];
+        $initial = substr($label, 0, 1);
+        if (is_numeric($initial)) {
+          $initial = "#";
+        }
+        if ($initial != $cur_initial) {
+          if ($cur_initial != "") {
+            $footer .= "\\par}\r\n";
+          }
+          $footer .= "{\\pard\\fs28{\\b " . $initial . "\\b}\\par}\r\n";
+          $footer .= "{\\pard\\ql ";
+          $cur_initial = $initial;
+        }
+        $footer .= $label . " {\\field{\*\\fldinst PAGEREF ".$anchor."}}\\line\r\n";
+      }
+      $footer .= "\\par}\r\n";
+      $footer .= $section_style[2];
+    }
 
     // Generate the header.
     //
@@ -306,9 +282,7 @@ class BookExportRtfController extends ControllerBase {
 
     // Front page
     if (1) {
-      $bookrtf_front_page = ['value' => '<h3>'.$this->bookexportrtf_book_title.'</h3>', 'format' => 'full_html'];
-      $bookrtf_front_page["value"] = "<html><body><h3>" . $bookrtf_front_page["value"] . "</body></html>";
-      $title_html = str_get_html($bookrtf_front_page["value"]);
+      $title_html = str_get_html("<html><body><h3>" . $this->bookexportrtf_book_title . "</body></html>");
       $elements = $title_html->find('html');
       $this->bookexportrtf_traverse($elements);
       $title_html = strip_tags($title_html);
@@ -341,29 +315,22 @@ class BookExportRtfController extends ControllerBase {
       // does not belong in the toc.
       $book_title_element = array_shift($toc);
       $book_title_element->outertext = "";
-      foreach ($toc as $e) {
-        // Assume title starts with the chapternumber
-        $title = $e->innertext;
-        preg_match("|^(\d+)\.\s|", $title, $match);
-        $chapter = $match[1];
-
+      $tid = 1;
+      foreach ($this->bookexportrtf_toc as $toc_title) {
         $header .= "\\trowd";
         $header .= "\\cellx7000 \\cellx8309\r\n";
-        $header .= "\\intbl\\pard " . $title . "\\cell";
+        $header .= "\\pard\\intbl " . $toc_title . "\\cell";
         $header .= "\\qr{\\field{\*\\fldinst PAGEREF chapter";
-        $header .= $chapter;
+        $header .= $tid;
         $header .= "}}\\cell\\row\r\n";
+        $tid++;
       }
 
-      $header .= "\\trowd";
-      $header .= "\\cellx7000 \\cellx8309\r\n";
-      $header .= "\\intbl\\pard Index\\cell";
-      $header .= "\\qr{\\field{\*\\fldinst PAGEREF chapterIndex}}\\cell\\row\r\n";
       $header .= "}\\par}\r\n";
     }
 
     // Make the final document.
-    $content = "{" . $header . $content . $footer . "}";
+    $content = "{" . $header . trim($content) . $footer . "}";
 
     // Encode special characters as RTF.
 
@@ -553,8 +520,15 @@ class BookExportRtfController extends ControllerBase {
             // Anchor, replace for the index, ignore others.
             if (preg_match("|^index|", $e->name)) {
               $label = substr($e->name, 5);
-              $anchor = "index-" . $this->bookexpor_rtf_index_id[$label];
-              $e->outertext = "{\\*\\bkmkstart " . $anchor . "}{\\*\\bkmkend ".$anchor."}";
+              if (!array_key_exists($label, $this->bookexportrtf_index)) {
+                $iid = count($this->bookexportrtf_index);
+                $this->bookexportrtf_index[$label] = $iid;
+                $e->outertext = "{\\*\\bkmkstart index-" . $iid . "}{\\*\\bkmkend index-".$iid."}";
+              }
+              else {
+                // Double entry, remove
+                $e->outertext = "";
+              }
             }
           }
           break;
@@ -595,8 +569,9 @@ class BookExportRtfController extends ControllerBase {
           $title = $e->innertext;
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          $rtf = $style[0];
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-left");
-          $rtf = "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
+          $rtf .= "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-right");
           $rtf .= "{\\headerr\\pard ". $header_style[1] . $title . "\\par}\r\n";
           $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-left");
@@ -604,11 +579,11 @@ class BookExportRtfController extends ControllerBase {
           $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-right");
           $rtf .= "{\\footerr\\pard ". $footer_style[1] . "\\chpgn \\par}\r\n";
 
-          // If the chapter starts with a number add a bookmark for the toc.
-          if (preg_match("|^(\d+)\.\s|", $title, $match)) {
-            $chapter = $match[1];
-            $rtf .= "{\\*\\bkmkstart chapter".$chapter."}{\\*\\bkmkend chapter".$chapter."}\r\n";
-          }
+          //
+          array_push($this->bookexportrtf_toc, $title);
+          $tid = count($this->bookexportrtf_toc);
+          $rtf .= "{\\*\\bkmkstart chapter".$tid."}{\\*\\bkmkend chapter".$tid."}\r\n";
+
           $rtf .= "{\\pard " . $style[1] . $title . "\\par}\r\n" . $style[2];
 
           $e->outertext = $rtf;
@@ -1084,7 +1059,7 @@ class BookExportRtfController extends ControllerBase {
    *   The RTF markup as prefix, infix and suffix.
    */
   private function bookexportrtf_get_rtf_style_from_selector($selector) {
-    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_css[$selector]);
+    return $this->bookexportrtf_get_rtf_style_from_css($this->bookexportrtf_css[$selector], $selector);
   }
 
   /**
@@ -1093,93 +1068,103 @@ class BookExportRtfController extends ControllerBase {
    * @param array $css
    *   The css property-value pairs.
    *
-   * @param string $tag
-   *   An optional tag of the HTML element.
+   * @param string $selector
+   *   A selector
    *
    * @return array
    *   The RTF markup as prefix, infix and suffix.
    */
-  private function bookexportrtf_get_rtf_style_from_css($css, $tag = NULL) {
-    if (!empty($tag)) {
-      // there are 4 basic style elements:
-      //   div: page break
-      //   p: font, margin etc.
-      //   td: like p, but with borders
-      //   span: font only
-      // several other elements have similar properties to p, td or span.
+  private function bookexportrtf_get_rtf_style_from_css($css, $selector) {
+    if (empty($selector)) {
+      return ["","","",""];
+    }
 
-      $supported = [
-        'div' => [
-          'page-break-before' => 1,
-          'page-break-after' => 1,],
-        'p' => [
-          'color' => 1,
-          'font-family' => 1,
-          'font-size' => 1,
-          'font-weight' => 1,
-          'margin-top' => 1,
-          'margin-right' => 1,
-          'margin-bottom' => 1,
-          'margin-left' => 1,
-          'text-align' => 1,
-          'text-decoration' => 1,
-          'text-decoration-color' => 1,
-          'text-decoration-style' => 1,],
-        'td' => [
-          'color' => 1,
-          'border-bottom-style' => 1,
-          'border-bottom-width' => 1,
-          'border-left-style' => 1,
-          'border-left-width' => 1,
-          'border-right-style' => 1,
-          'border-right-width' => 1,
-          'border-top-style' => 1,
-          'border-top-width' => 1,
-          'margin-top' => 1,
-          'margin-right' => 1,
-          'margin-bottom' => 1,
-          'margin-left' => 1,
-          'font-family' => 1,
-          'font-size' => 1,
-          'font-weight' => 1,
-          'text-align' => 1,
-          'text-decoration' => 1,
-          'text-decoration-color' => 1,
-          'text-decoration-style' => 1,
-          'vertical-align' => 1,],
-        'span' => [
-          'color' => 1,
-          'font-family' => 1,
-          'font-size' => 1,
-          'font-weight' => 1,
-          'text-decoration' => 1,
-          'text-decoration-color' => 1,
-          'text-decoration-style' => 1,],];
+    // there are 4 basic style elements:
+    //   div: page break
+    //   p: font, margin etc.
+    //   td: like p, but with borders
+    //   span: font only
+    // several other elements have similar properties to p, td or span.
 
-      // headers also support page breaks
-      $supported['h1'] = $supported['p'];
-      $supported['h1']['page-break-before'] = 1;
-      $supported['h1']['page-break-after'] = 1;
+    $supported = [
+      'div' => [
+        'page-break-before' => 1,
+        'page-break-after' => 1,],
+      'p' => [
+        'color' => 1,
+        'font-family' => 1,
+        'font-size' => 1,
+        'font-weight' => 1,
+        'margin-top' => 1,
+        'margin-right' => 1,
+        'margin-bottom' => 1,
+        'margin-left' => 1,
+        'text-align' => 1,
+        'text-decoration' => 1,
+        'text-decoration-color' => 1,
+        'text-decoration-style' => 1,],
+      'td' => [
+        'color' => 1,
+        'border-bottom-style' => 1,
+        'border-bottom-width' => 1,
+        'border-left-style' => 1,
+        'border-left-width' => 1,
+        'border-right-style' => 1,
+        'border-right-width' => 1,
+        'border-top-style' => 1,
+        'border-top-width' => 1,
+        'margin-top' => 1,
+        'margin-right' => 1,
+        'margin-bottom' => 1,
+        'margin-left' => 1,
+        'font-family' => 1,
+        'font-size' => 1,
+        'font-weight' => 1,
+        'text-align' => 1,
+        'text-decoration' => 1,
+        'text-decoration-color' => 1,
+        'text-decoration-style' => 1,
+        'vertical-align' => 1,],
+      'span' => [
+        'color' => 1,
+        'font-family' => 1,
+        'font-size' => 1,
+        'font-weight' => 1,
+        'text-decoration' => 1,
+        'text-decoration-color' => 1,
+        'text-decoration-style' => 1,],];
 
-      // inherit
-      $supported['article'] = $supported['div'];
-      $supported['h2'] = $supported['h1'];
-      $supported['h3'] = $supported['h1'];
-      $supported['h4'] = $supported['h1'];
-      $supported['h5'] = $supported['h1'];
-      $supported['h6'] = $supported['h1'];
-      $supported['code'] = $supported['p'];
-      $supported['li'] = $supported['p'];
-      $supported['th'] = $supported['td'];
-      $supported['del'] = $supported['span'];
-      $supported['s'] = $supported['span'];
-      $supported['ins'] = $supported['span'];
-      $supported['u'] = $supported['span'];
+    // headers also support page breaks
+    $supported['h1'] = $supported['p'];
+    $supported['h1']['page-break-before'] = 1;
+    $supported['h1']['page-break-after'] = 1;
 
-      foreach (array_keys($css) as $selector) {
-        if (!array_key_exists(trim($selector), $supported[$tag])) {
-          unset($css[$selector]);
-        }
+    // inherit
+    $supported['article'] = $supported['div'];
+    $supported['h2'] = $supported['h1'];
+    $supported['h3'] = $supported['h1'];
+    $supported['h4'] = $supported['h1'];
+    $supported['h5'] = $supported['h1'];
+    $supported['h6'] = $supported['h1'];
+    $supported['code'] = $supported['p'];
+    $supported['li'] = $supported['p'];
+    $supported['.header-left'] = $supported['p'];
+    $supported['.header-right'] = $supported['p'];
+    $supported['.footer-left'] = $supported['p'];
+    $supported['.footer-right'] = $supported['p'];
+    $supported['th'] = $supported['td'];
+    $supported['del'] = $supported['span'];
+    $supported['s'] = $supported['span'];
+    $supported['ins'] = $supported['span'];
+    $supported['u'] = $supported['span'];
+
+    if (!array_key_exists($selector, $supported)) {
+      return ["","",""];
+    }
+
+    foreach (array_keys($css) as $property) {
+      if (!array_key_exists(trim($property), $supported[$selector])) {
+        unset($css[$property]);
       }
     }
 
@@ -1309,7 +1294,7 @@ class BookExportRtfController extends ControllerBase {
 
     // Page breaks
     if (array_key_exists('page-break-before', $css)) {
-      if ($tag == 'article') {
+      if ($selector == 'article') {
         // articles come with a section break, this also supports avoid
         switch (trim($css['page-break-before'])) {
           case "always":
@@ -1333,7 +1318,7 @@ class BookExportRtfController extends ControllerBase {
         $rtf_suffix .= "\\page";
       }
       if (trim($css['page-break-after']) == "avoid") {
-        if ($tag != "div" & $tag != "article") {
+        if ($selector != "div" & $selector != "article") {
           // divs and article can't be attached to the next part
           $rtf_infix .= "\\keepn";
         }
