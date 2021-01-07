@@ -546,7 +546,7 @@ class BookExportRtfController extends ControllerBase {
               $e->outertext = $title;
             }
             else {
-              $e->outertext = $title . "{\\footnote \\pard {\\up6 \\chftn} " . $url . "}";
+              $e->outertext = $title . "{\\footnote \\pard {\\super \\chftn} " . $url . "}";
             }
           }
           else if ($e->name) {
@@ -557,6 +557,23 @@ class BookExportRtfController extends ControllerBase {
               $e->outertext = "{\\*\\bkmkstart " . $anchor . "}{\\*\\bkmkend ".$anchor."}";
             }
           }
+          break;
+
+        case 'article':
+          // get the depth and add it to the class
+          $depth = 1;
+          $p = $e->parent();
+          while($p) {
+            if ($p->tag == 'article') {
+              $depth++;
+            }
+            $p = $p->parent();
+          }
+
+          $e->class .= " article-depth-" . $depth;
+
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          $e->outertext = "\\sect\\sftnrstp" . $style[1] . "\r\n" . $e->innertext . $style[2];
           break;
 
         case 'br':
@@ -575,34 +592,11 @@ class BookExportRtfController extends ControllerBase {
           break;
 
         case 'h1':
-          // Start of a new chapter, thus start a new section.
-          //
-          // Page break behaves erratic around section breaks. Page break is
-          // handled by css which adds \\page. However, in Libre office
-          // \\sect\\sbknone seem to overwrite \\page as \\sect\\sbknone\\page
-          // does not lead to a page break. Also \\sect\\page leads to one page
-          // break instead of two.
-          //
-          // Ignore the CSS engine and add \\sbknone unless a page break should
-          // be added before H1.
-
           $title = $e->innertext;
-          $css = $this->bookexportrtf_get_css_style_from_element($e);
-          $rtf = "\\sect";
-          if (!array_key_exists('page-break-before', $css)) {
-            $rtf .= "\\sbknone";
-          }
-          elseif (trim($css['page-break-before']) != "always") {
-            $rtf .= "\\sbknone";
-          }
-          else {
-            unset($css['page-break-before']);
-          }
-          $rtf .= "\\sftnrstpg\r\n";
 
-          $style = $this->bookexportrtf_get_rtf_style_from_css($css);
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-left");
-          $rtf .= "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
+          $rtf = "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
           $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-right");
           $rtf .= "{\\headerr\\pard ". $header_style[1] . $title . "\\par}\r\n";
           $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-left");
@@ -615,7 +609,7 @@ class BookExportRtfController extends ControllerBase {
             $chapter = $match[1];
             $rtf .= "{\\*\\bkmkstart chapter".$chapter."}{\\*\\bkmkend chapter".$chapter."}\r\n";
           }
-          $rtf .= "{\\pard\\keepn " . $style[1] . $title . "\\par}\r\n" . $style[2];
+          $rtf .= "{\\pard " . $style[1] . $title . "\\par}\r\n" . $style[2];
 
           $e->outertext = $rtf;
           break;
@@ -626,7 +620,7 @@ class BookExportRtfController extends ControllerBase {
         case 'h5':
         case 'h6':
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
-          $e->outertext = $style[0] . "{\\pard\\keepn " . $style[1] . $e->innertext . "\\par}\r\n" . $style[2];
+          $e->outertext = $style[0] . "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n" . $style[2];
           break;
 
         case 'head':
@@ -926,7 +920,7 @@ class BookExportRtfController extends ControllerBase {
 
             // Second iteration to make the cells themselves.
             foreach ($row as $cell) {
-              $rtf .= "\\intbl{";
+              $rtf .= "\\pard\\intbl{";
               $rtf .= $cell['style_infix'];
               $rtf .= $cell['innertext'];
               $rtf .= "}\\cell\r\n";
@@ -1168,6 +1162,7 @@ class BookExportRtfController extends ControllerBase {
       $supported['h1']['page-break-after'] = 1;
 
       // inherit
+      $supported['article'] = $supported['div'];
       $supported['h2'] = $supported['h1'];
       $supported['h3'] = $supported['h1'];
       $supported['h4'] = $supported['h1'];
@@ -1314,14 +1309,35 @@ class BookExportRtfController extends ControllerBase {
 
     // Page breaks
     if (array_key_exists('page-break-before', $css)) {
-      if (trim($css['page-break-before']) == "always") {
+      if ($tag == 'article') {
+        // articles come with a section break, this also supports avoid
+        switch (trim($css['page-break-before'])) {
+          case "always":
+            $rtf_infix .= "\\sbkpage";
+            break;
+
+          case "avoid":
+            $rtf_infix .= "\\sbknone";
+            break;
+
+        }
+      }
+      else {
+        if (trim($css['page-break-before']) == "always") {
           $rtf_prefix .= "\\page";
-       }
+        }
+      }
     }
     if (array_key_exists('page-break-after', $css)) {
       if (trim($css['page-break-after']) == "always") {
-          $rtf_suffix .= "\\page";
-       }
+        $rtf_suffix .= "\\page";
+      }
+      if (trim($css['page-break-after']) == "avoid") {
+        if ($tag != "div" & $tag != "article") {
+          // divs and article can't be attached to the next part
+          $rtf_infix .= "\\keepn";
+        }
+      }
     }
 
     // Tables
