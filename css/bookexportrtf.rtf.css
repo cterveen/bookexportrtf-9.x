@@ -19,9 +19,13 @@
  *    .footer-right
  *    .article-depth-N
  *      N is the depth of the article, toplevel (book) = 1
+ *    .last-item-in-list
+ *      This is the last item in the complete list, so not the last item in a
+ *      nested list.
  *
  *  Supported properties [values]:
  *    margin-* [cm, mm, in, px, pt, pc]
+ *      In lists margin-left specifies the amount of indentation.
  *    font-family [first value only]
  *    font-size [cm, mm, in, px, pt, pc]
  *    font-weight [bold, normal]
@@ -33,6 +37,9 @@
  *      LibreOffice does not implement underline color from RTF.
  *    text-decoration-style [solid, double, dashed, dotted, wavy]
  *      RTF only supports style for underline.
+ *    text-indent [cm, mm, in, px, pt, pc]
+ *      In lists text-indent specifies the indentation of the bullet and should
+ *      be negative.
  *    color [rgb(), #, color name]
  *
  *   Properties only applied in table cells (td, th):
@@ -44,9 +51,9 @@
  *
  *   Properties only applied in h1-6, div, article
  *    page-break-before [always, auto, avoid]
- *      note that avoid only works article
+ *      RTF only supports avoid for sections (so html element article).
  *    page-break-after [always, auto, avoid]
- *      note that avoid only works for h1-6
+ *      RTF only supports avoid for paragraphs, this only work for headers.
  *
  * Note that values and colors should be in css format, this includes unit or
  * type specification. All values will be converted to rtf appropriate values.
@@ -102,7 +109,9 @@ h6 {
 /* lists */
 li {
   margin-bottom: 0px;
+  margin-left: 36pt;
   text-align: left;
+  text-indent: -18pt;
 }
 
 /* tables */
@@ -144,4 +153,7 @@ code {
 }
 .footer-right {
   text-align: right;
+}
+.last-item-in-list {
+  margin-bottom: 13px;
 }
