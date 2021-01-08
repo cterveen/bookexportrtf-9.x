@@ -235,15 +235,22 @@ class BookExportRtfController extends ControllerBase {
         if (is_numeric($initial)) {
           $initial = "#";
         }
+        $h2 = $html->find('h2');
+        $h2_style = $this->bookexportrtf_get_rtf_style_from_element($h2[0]);
+        $p = $html->find('p');
+        $p_style = $this->bookexportrtf_get_rtf_style_from_element($p[0]);
         if ($initial != $cur_initial) {
           if ($cur_initial != "") {
             $footer .= "\\par}\r\n";
           }
-          $footer .= "{\\pard\\fs28{\\b " . $initial . "\\b}\\par}\r\n";
-          $footer .= "{\\pard\\ql ";
+          $footer .= $h2_style[0] . "{\\pard " . $h2_style[1] .  $initial . "\\par}\r\n";
+          $footer .= "{\\pard " . $p_style[1] . $label . " {\\field{\*\\fldinst PAGEREF ".$anchor."}}";
           $cur_initial = $initial;
         }
-        $footer .= $label . " {\\field{\*\\fldinst PAGEREF ".$anchor."}}\\line\r\n";
+        else {
+          // add a tab to keep the label and page togeter in case text is aligned justified.
+          $footer .= "\\tab\\line\r\n" . $label . " {\\field{\*\\fldinst PAGEREF ".$anchor."}}";
+        }
       }
       $footer .= "\\par}\r\n";
       $footer .= $section_style[2];
