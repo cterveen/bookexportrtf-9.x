@@ -135,8 +135,10 @@ class BookExportRtfController extends ControllerBase {
     }
     $content = preg_replace("|-->\s+<|", "--><", $content);
     $content = preg_replace("|>\s+<!--|", "><!--", $content);
-    // Remove white-space after the body.
+    // Remove white-space after the body and br.
     $content = preg_replace("|<body>\s+|", "<body>", $content);
+    $content = preg_replace("|<br>\s+|", "<br>", $content);
+    $content = preg_replace("|<br />\s+|", "<br />", $content);
 
     // Create the HTML object.
     $html = str_get_html($content);
@@ -676,10 +678,13 @@ class BookExportRtfController extends ControllerBase {
           // list structures I feel confident working from li backwards and
           // strip out the list-tags later.
 
+          $rtf = "";
+
           $depth = 0;
           $type = "ul";
           $number = 1;
-          $last = 1;
+          $lastinlevel = 1;
+          $lastinlist = 1;
 
           // Type, level
           $p = $e->parent();
@@ -704,13 +709,40 @@ class BookExportRtfController extends ControllerBase {
           $s = $e->next_sibling();
           while($s) {
             if ($s->tag == "li") {
-              $last = 0;
+              $lastinlevel = 0;
+              $lastinlist = 0;
               break;
             }
             $s = $s->next_sibling();
           }
-
-          $rtf = "";
+          if ($lastinlist) {
+            $children = $e->children();
+            foreach ($children as $c) {
+              array_merge($children, $c->children());
+              if ($c->tag == "ol" | $c->tag == "ul") {
+                $lastinlist = 0;
+                break;
+              }
+            }
+          }
+          if ($lastinlist) {
+            $p = $e->parent();
+            while ($p) {
+              if ($p->tag == "li") {
+                $s = $p->next_sibling();
+                if (isset($s)) {
+                  if ($s->tag == "li") {
+                    $lastinlist = 0;
+                    break;
+                  }
+                }
+              }
+              $p = $p->parent();
+            }
+          }
+          if ($lastinlist) {
+            $e->class = $e->class . " last-item-in-list";
+          }
 
           // If the first item of a nested list close the current paragraph.
           if ($depth > 1 & $number == 1) {
@@ -718,12 +750,11 @@ class BookExportRtfController extends ControllerBase {
           }
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          // fix the left margin to the depth
+          preg_match("|\\li(\d+)|", $style[1], $matches);
+          $style[1] = preg_replace("|\\\\li\d+|","\\li" . ($depth*$matches[1]), $style[1]);
           $rtf .= "{\\pard " . $style[1];
 
-          $firstindent = -360;
-          $lineindent = 720 * $depth;
-
-          $rtf .= "\\fi" . $firstindent . "\\li". $lineindent;
           if ($type == "ul") {
             $rtf .= "\\bullet\\tab ";
           }
@@ -739,12 +770,12 @@ class BookExportRtfController extends ControllerBase {
            * of the nested list. That should not be the case.
            */
 
-          if ($last != 1 | $depth == 1) {
+          if ($lastinlevel != 1 | $depth == 1) {
             $rtf .= "\\par}\r\n";
           }
-          if ($depth == 1 & $last == 1) {
+          if ($depth == 1 & $lastinlevel == 1) {
             // Add some empty space after the list.
-             $rtf .= "{\\pard\\sa0\\par}\r\n";
+            // $rtf .= "{\\pard\\sa0\\par}\r\n";
           }
           $e->outertext = $rtf;
           break;
@@ -1102,7 +1133,8 @@ class BookExportRtfController extends ControllerBase {
         'text-align' => 1,
         'text-decoration' => 1,
         'text-decoration-color' => 1,
-        'text-decoration-style' => 1,],
+        'text-decoration-style' => 1,
+        'text-indent' => 1],
       'td' => [
         'color' => 1,
         'border-bottom-style' => 1,
@@ -1124,6 +1156,7 @@ class BookExportRtfController extends ControllerBase {
         'text-decoration' => 1,
         'text-decoration-color' => 1,
         'text-decoration-style' => 1,
+        'text-indent' => 1,
         'vertical-align' => 1,],
       'span' => [
         'color' => 1,
@@ -1178,6 +1211,9 @@ class BookExportRtfController extends ControllerBase {
     $rtf_suffix = "";
 
     // Use if statements rather than switch to group tags.
+    if (array_key_exists('text-indent', $css)) {
+      $rtf_infix .= "\\fi" . $this->bookexportrtf_convert_length($css['text-indent']);
+    }
     if (array_key_exists('margin-top', $css)) {
       $rtf_infix .= "\\sb" . $this->bookexportrtf_convert_length($css['margin-top']);
     }
@@ -1591,7 +1627,7 @@ class BookExportRtfController extends ControllerBase {
    *   The length in twips.
    */
   private function bookexportrtf_convert_length($css) {
-    preg_match("|^(\d+\.?\d*)([a-zA-Z]+)$|", trim($css), $r);
+    preg_match("|^(-?\d+\.?\d*)([a-zA-Z]+)$|", trim($css), $r);
     if (count($r) == 0) {
       return 0;
     }
