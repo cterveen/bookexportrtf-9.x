@@ -98,6 +98,8 @@ class BookExportRtfTest extends UnitTestCase
   public function test_html_conversions() {
     $this->assertEquals($this->get_function("bookexportrtf_traverse", $this->testfile), $this->get_function("bookexportrtf_traverse", $this->codefile), "Failure cloning bookexportrtf_traverse()");
 
+    $this->bookexportrtf_css[".list-short-indent"] = ["text-indent" => "-12pt", "margin-left" => "18pt"];
+
     $expected = [
       "matched link" => ['<a href = "http://www.rork.nl/">www.rork.nl</a>', 'a', "www.rork.nl"],
       "unmatched link" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\super \\chftn} http://www.rork.nl/}"],
@@ -115,8 +117,10 @@ class BookExportRtfTest extends UnitTestCase
       "h6" => ['<h6>header</h6>', 'h6', "{\\pard \\keepn header\\par}\r\n"],
       "head" => ['<head><title>page title</head>', 'head', ""],
       "italic text" => ['<i>italic text</i>', 'i', "{\\i italic text}"],
-      "unordered list" => ['<ul><li>first item<li>second item</ul>', 'ul', "{\\pard \\sa0\\ql \\fi-360\\li720\\bullet\\tab first item\\par}\r\n{\\pard \\sa0\\ql \\fi-360\\li720\\bullet\\tab second item\\par}\r\n{\\pard\\sa0\\par}\r\n"],
-      "ordered list" => ['<ol><li>first item<li>second item</ol', 'ol', "{\\pard \\sa0\\ql \\fi-360\\li720 1.\\tab first item\\par}\r\n{\\pard \\sa0\\ql \\fi-360\\li720 2.\\tab second item\\par}\r\n{\\pard\\sa0\\par}\r\n"],
+      "unordered list" => ['<ul><li>first item<li>second item</ul>', 'ul', "{\\pard \\fi-360\\sa0\\li720\\ql \\bullet\\tab first item\\par}\r\n{\\pard \\fi-360\\sa195\\li720\\ql \\bullet\\tab second item\\par}\r\n"],
+      "ordered list" => ['<ol><li>first item<li>second item</ol', 'ol', "{\\pard \\fi-360\\sa0\\li720\\ql  1.\\tab first item\\par}\r\n{\\pard \\fi-360\\sa195\\li720\\ql  2.\\tab second item\\par}\r\n"],
+      "complicated list" => ['<ol><li>first item<ul><li>second item</ul><li>third item<ul><li>fourth item</ul></ol>', 'ol', "{\\pard \\fi-360\\sa0\\li720\\ql  1.\\tab first item\\par}\r\n{\\pard \\fi-360\\sa0\\li1440\\ql \\bullet\\tab second item\\par}\r\n{\\pard \\fi-360\\sa0\\li720\\ql  2.\\tab third item\\par}\r\n{\\pard \\fi-360\\sa195\\li1440\\ql \\bullet\\tab fourth item\\par}\r\n"],
+      "list with short indent" => ['<ul><li class = "list-short-indent">first item</ul>', 'ul', "{\\pard \\fi-240\\sa195\\li360\\ql \\bullet\\tab first item\\par}\r\n"],
       "p" => ['<p>Some text.</p>', 'p', "{\\pard \\sa195\\qj Some text.\\par}\r\n"],
       "code" => ['<code>echo "foo";</code>', 'code', "{\\pard \\f1 echo \"foo\";\\par}\r\n"],
       "s" => ['<s>strike through</s>', 's', "{\\strike strike through}"],
@@ -277,6 +281,7 @@ class BookExportRtfTest extends UnitTestCase
         "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "", ""],
         "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "", ""],
         "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "", ""],
+        "text indent" => [['text-indent' => '18pt'], "", "", ""],
         "top margin" => [['margin-top' => '10px'], "", "", ""],
         "right margin" => [['margin-right' => '10px'], "", "", ""],
         "bottom margin" => [['margin-bottom' => '10px'], "", "", ""],
@@ -314,6 +319,7 @@ class BookExportRtfTest extends UnitTestCase
         "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
         "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
         "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "text indent" => [['text-indent' => '18pt'], "", "\\fi360 ", ""],
         "top margin" => [['margin-top' => '10px'], "", "\\sb150 ", ""],
         "right margin" => [['margin-right' => '10px'], "", "\\ri150 ", ""],
         "bottom margin" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
@@ -365,6 +371,7 @@ class BookExportRtfTest extends UnitTestCase
         "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
         "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
         "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "text indent" => [['text-indent' => '18pt'], "", "\\fi360 ", ""],
         "top margin" => [['margin-top' => '10px'], "", "\\sb150 ", ""],
         "right margin" => [['margin-right' => '10px'], "", "\\ri150 ", ""],
         "bottom margin" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
@@ -405,6 +412,7 @@ class BookExportRtfTest extends UnitTestCase
         "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
         "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
         "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "text indent" => [['text-indent' => '18pt'], "", "", ""],
         "top margin" => [['margin-top' => '10px'], "", "", ""],
         "right margin" => [['margin-right' => '10px'], "", "", ""],
         "bottom margin" => [['margin-bottom' => '10px'], "", "", ""],
@@ -743,10 +751,13 @@ class BookExportRtfTest extends UnitTestCase
           // list structures I feel confident working from li backwards and
           // strip out the list-tags later.
 
+          $rtf = "";
+
           $depth = 0;
           $type = "ul";
           $number = 1;
-          $last = 1;
+          $lastinlevel = 1;
+          $lastinlist = 1;
 
           // Type, level
           $p = $e->parent();
@@ -771,13 +782,40 @@ class BookExportRtfTest extends UnitTestCase
           $s = $e->next_sibling();
           while($s) {
             if ($s->tag == "li") {
-              $last = 0;
+              $lastinlevel = 0;
+              $lastinlist = 0;
               break;
             }
             $s = $s->next_sibling();
           }
-
-          $rtf = "";
+          if ($lastinlist) {
+            $children = $e->children();
+            foreach ($children as $c) {
+              array_merge($children, $c->children());
+              if ($c->tag == "ol" | $c->tag == "ul") {
+                $lastinlist = 0;
+                break;
+              }
+            }
+          }
+          if ($lastinlist) {
+            $p = $e->parent();
+            while ($p) {
+              if ($p->tag == "li") {
+                $s = $p->next_sibling();
+                if (isset($s)) {
+                  if ($s->tag == "li") {
+                    $lastinlist = 0;
+                    break;
+                  }
+                }
+              }
+              $p = $p->parent();
+            }
+          }
+          if ($lastinlist) {
+            $e->class = $e->class . " last-item-in-list";
+          }
 
           // If the first item of a nested list close the current paragraph.
           if ($depth > 1 & $number == 1) {
@@ -785,12 +823,11 @@ class BookExportRtfTest extends UnitTestCase
           }
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          // fix the left margin to the depth
+          preg_match("|\\li(\d+)|", $style[1], $matches);
+          $style[1] = preg_replace("|\\\\li\d+|","\\li" . ($depth*$matches[1]), $style[1]);
           $rtf .= "{\\pard " . $style[1];
 
-          $firstindent = -360;
-          $lineindent = 720 * $depth;
-
-          $rtf .= "\\fi" . $firstindent . "\\li". $lineindent;
           if ($type == "ul") {
             $rtf .= "\\bullet\\tab ";
           }
@@ -806,12 +843,12 @@ class BookExportRtfTest extends UnitTestCase
            * of the nested list. That should not be the case.
            */
 
-          if ($last != 1 | $depth == 1) {
+          if ($lastinlevel != 1 | $depth == 1) {
             $rtf .= "\\par}\r\n";
           }
-          if ($depth == 1 & $last == 1) {
+          if ($depth == 1 & $lastinlevel == 1) {
             // Add some empty space after the list.
-             $rtf .= "{\\pard\\sa0\\par}\r\n";
+            // $rtf .= "{\\pard\\sa0\\par}\r\n";
           }
           $e->outertext = $rtf;
           break;
@@ -1169,7 +1206,8 @@ class BookExportRtfTest extends UnitTestCase
         'text-align' => 1,
         'text-decoration' => 1,
         'text-decoration-color' => 1,
-        'text-decoration-style' => 1,],
+        'text-decoration-style' => 1,
+        'text-indent' => 1],
       'td' => [
         'color' => 1,
         'border-bottom-style' => 1,
@@ -1191,6 +1229,7 @@ class BookExportRtfTest extends UnitTestCase
         'text-decoration' => 1,
         'text-decoration-color' => 1,
         'text-decoration-style' => 1,
+        'text-indent' => 1,
         'vertical-align' => 1,],
       'span' => [
         'color' => 1,
@@ -1245,6 +1284,9 @@ class BookExportRtfTest extends UnitTestCase
     $rtf_suffix = "";
 
     // Use if statements rather than switch to group tags.
+    if (array_key_exists('text-indent', $css)) {
+      $rtf_infix .= "\\fi" . $this->bookexportrtf_convert_length($css['text-indent']);
+    }
     if (array_key_exists('margin-top', $css)) {
       $rtf_infix .= "\\sb" . $this->bookexportrtf_convert_length($css['margin-top']);
     }
@@ -1658,7 +1700,7 @@ class BookExportRtfTest extends UnitTestCase
    *   The length in twips.
    */
   private function bookexportrtf_convert_length($css) {
-    preg_match("|^(\d+\.?\d*)([a-zA-Z]+)$|", trim($css), $r);
+    preg_match("|^(-?\d+\.?\d*)([a-zA-Z]+)$|", trim($css), $r);
     if (count($r) == 0) {
       return 0;
     }
