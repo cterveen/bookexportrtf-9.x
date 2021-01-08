@@ -38,9 +38,9 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<tr><td>code</td><td>' . t('Put &lt;code&gt; between &lt;pre&gt; tags to preserve newlines and whitespace.') . '</td></tr>';
       $output .= '<tr><td>del</td><td></td></tr>';
       $output .= '<tr><td>div</td><td>' . t('Only for document structure, text should be between &lt;p&gt; tags.') . '</td></tr>';
-      $output .= '<tr><td>h1</td><td>' .t ('Header 1 also sets the headers and footers.') . '</td></tr>';
+      $output .= '<tr><td>h1</td><td>' . t ('Header 1 also sets the headers and footers.') . '</td></tr>';
       $output .= '<tr><td>h2</td><td></td></tr>';
-      $output .= '<tr><td>h3</td><td></td></tr>';
+      $output .= '<tr><td>h3</td><td>' . t('Header 3 is used for the book title.') . '</td></tr>';
       $output .= '<tr><td>h4</td><td></td></tr>';
       $output .= '<tr><td>h5</td><td></td></tr>';
       $output .= '<tr><td>h6</td><td></td></tr>';
@@ -48,7 +48,7 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<tr><td>i</td><td></td></tr>';
       $output .= '<tr><td>img</td><td>' . t('PNG, JPEG and (non-animated) GIF. Scaled to page width when wider.') . '</td></tr>';
       $output .= '<tr><td>ins</td><td></td></tr>';
-      $output .= '<tr><td>li</td><td>' . t('Both ordered and unordered lists. Ordered list are formated to numeric (1., 2., 3., ...).') . '</td></tr>';
+      $output .= '<tr><td>li</td><td>' . t('Both ordered and unordered lists. Ordered list are formated to numeric (1., 2., 3., ...). None-inherited properties from ul and ol are ignored. Indentation can be configured using text-indent for the "bullet" (which should be a negative number) and margin-left for the main text. Space after the last item of the list (including sublists) can be set using the special selector .last-item-in-list.') . '</td></tr>';
       $output .= '<tr><td>p</td><td></td></tr>';
       $output .= '<tr><td>pre</td><td>' . t('This is currently the only way to preserve spacing and newlines.') . '</td></tr>';
       $output .= '<tr><td>s</td><td></td></tr>';
@@ -125,6 +125,8 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '    <td>-</td><td>-</td><td>*</td><td>*</td><td>*</td><td>*</td></tr>';
       $output .= '<tr><td>text-decoration-style<sup>3</sup><br />&nbsp;&nbsp;&nbsp;[solid, double, dashed, dotted, wavy]</td>';
       $output .= '    <td>-</td><td>-</td><td>*</td><td>*</td><td>*</td><td>*</td></tr>';
+      $output .= '<tr><td>text-indent<br />&nbsp;&nbsp;&nbsp;[cm, mm, in, px, pt, pc]</td>';
+      $output .= '    <td>-</td><td>-</td><td>+</td><td>+</td><td>-</td><td>+</td></tr>';
       $output .= '<tr><td>vertical-align<br />&nbsp;&nbsp;&nbsp;[top, middle, bottom]</td>';
       $output .= '    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>+</td></tr>';
       $output .= '<tr><td>width<br />&nbsp;&nbsp;&nbsp;[cm, mm, in, px, pt, pc]</td>';
@@ -136,7 +138,7 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<h3>' . t('Page size') . '</h3>';
       $output .= '<p>' . t('The page size is A4 with standard margins. The page size can not be customized at the moment.') . '</p>';
       $output .= '<h3>' . t('Whitespace') . '</h3>';
-      $output .= '<p>' . t('Whitespace handling differs between HTML and RTF. Whereas HTML ignores whitespace between structural elements and shows multiple whitespace elements as a single space RTF only ignores a single space after a tag. Therefore whitespace between structural elements is removed, however whitespace within texts are preserved. Newlines are ignored by both RTF and HTML and are removed except when embeded in &lt;pre&gt;...&lt;/pre&gt; tags. The HTML newline element &lt;br /&gt; is replaced by a newline in RTF.') . '</p>';
+      $output .= '<p>' . t('Whitespace handling differs between HTML and RTF. Whereas HTML ignores whitespace between structural elements and shows multiple whitespace elements as a single space RTF only ignores a single space after a tag. Therefore whitespace between structural elements is removed, however whitespace within texts is preserved. Newlines are ignored by both RTF and HTML and are removed except when embeded in &lt;pre&gt;...&lt;/pre&gt; tags. The HTML newline element &lt;br /&gt; is replaced by a newline in RTF.') . '</p>';
 
       return $output;
     default:
