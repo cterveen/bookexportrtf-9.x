@@ -99,6 +99,8 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '    <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>+</td></tr>';
       $output .= '<tr><td>color<br />&nbsp;&nbsp;&nbsp;[rgb(), #, color name]</td>';
       $output .= '    <td>-</td><td>-</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>';
+      $output .= '<tr><td>display<br />&nbsp;&nbsp;&nbsp;[initial, none]</td>';
+      $output .= '    <td>-</td><td>-</td><td>-</td><td>+</td><td>+</td><td>-</td></tr>';
       $output .= '<tr><td>font-family<br />&nbsp;&nbsp;&nbsp;[first value only]</td>';
       $output .= '    <td>+</td><td>-</td><td>+</td><td>+</td><td>+</td><td>+</td></tr>';
       $output .= '<tr><td>font-size<br />&nbsp;&nbsp;&nbsp;[cm, mm, in, px, pt, pc]</td>';
