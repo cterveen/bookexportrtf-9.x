@@ -1,16 +1,14 @@
 /* rtf.css - stylesheet for the bookrtf RTF output
  *
  *  Supported elements:
- *    body p
+ *    body
  *    h1 h2 h3 h4 h5 h6
- *    li
+ *    p li code
+ *    span del ins s
  *    th td
- *    code
  *    pre
- *    span
- *    del s ins
  *    u
- *    div article (as part of the parental tree; page breaks)
+ *    div article
  *
  *  Build in classes:
  *    .header-left
@@ -24,11 +22,14 @@
  *      nested list.
  *
  *  Supported properties [values]:
- *    margin-* [cm, mm, in, px, pt, pc]
- *      In lists margin-left specifies the amount of indentation.
+ *    color [rgb(), #, color name]
+ *    display [none initial]
+ *      only for the p and span groups
  *    font-family [first value only]
  *    font-size [cm, mm, in, px, pt, pc]
  *    font-weight [bold, normal]
+ *    margin-* [cm, mm, in, px, pt, pc]
+ *      In lists margin-left specifies the amount of indentation.
  *    text-align [left, right, center, justify]
  *    text-decoration [line-through, underline, none]
  *      RTF does not support overstrike.
@@ -40,7 +41,6 @@
  *    text-indent [cm, mm, in, px, pt, pc]
  *      In lists text-indent specifies the indentation of the bullet and should
  *      be negative.
- *    color [rgb(), #, color name]
  *
  *   Properties only applied in table cells (td, th):
  *    border-*-width [cm, mm, in, px, pt, pc]
@@ -156,4 +156,15 @@ code {
 }
 .last-item-in-list {
   margin-bottom: 13px;
+}
+
+/* hide author and creation date */
+.field--name-created {
+  display: none;
+}
+.field--name-title {
+  display: none;
+}
+.field--name-uid {
+  display: none;
 }
