@@ -15,7 +15,8 @@ use Drupal\Tests\UnitTestCase;
 class BookExportRtfTest extends UnitTestCase
 {
 
-  public function setUp() {
+  public function setUp() : void {
+    parent::setUp();
     /*
      * Load the HTML and CSS parsers
      */
@@ -75,39 +76,20 @@ class BookExportRtfTest extends UnitTestCase
   }
 
   /**
-   * Test function clone test
-   *
-   * Loading the BookExportRtfController class ends up in problems with
-   * dependencies. Furthermore some of the functions to be tested are private
-   * and can not be called by the test file.
-   *
-   * A work around is to copy paste the functions to this file and then test
-   * them. For this it's required to test whether the function had been copied
-   * correctly. This tests whether the the function is grabbed correctly.
-   *
-   * A more proper solution would be to move a lot of the conversion
-   * functionality to a separate library with public functions.
-   */
-  public function test_function_clone_test() {
-    $this->assertEquals("function get_test_function() {\n    //foo\n", $this->get_function("get_test_function", $this->testfile), "Failure cloning get_test_function()");
-  }
-
-  /**
    * Test getting the html conversion on some small elements
    */
   public function test_html_conversions() {
-    $this->assertEquals($this->get_function("bookexportrtf_traverse", $this->testfile), $this->get_function("bookexportrtf_traverse", $this->codefile), "Failure cloning bookexportrtf_traverse()");
-
-    $this->bookexportrtf_css[".list-short-indent"] = ["text-indent" => "-12pt", "margin-left" => "18pt"];
-
     $expected = [
-      "matched link" => ['<a href = "http://www.rork.nl/">www.rork.nl</a>', 'a', "www.rork.nl"],
-      "unmatched link" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\super \\chftn} http://www.rork.nl/}"],
-      "index anchor" => ['<a name = "indexItem"></a>an index item', 'a', "{\\*\\bkmkstart index-0}{\\*\\bkmkend index-0}an index item"],
-      "no index anchor" => ['<a name = "NoIndexItem"></a>no index item', 'a', "no index item"],
+      "a:href (url == label)" => ['<a href = "http://www.rork.nl/">www.rork.nl</a>', 'a', "www.rork.nl"],
+      "a:href (url != label)" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\super \\chftn} http://www.rork.nl/}"],
+      "a:name (index item)" => ['<a name = "indexItem"></a>an index item', 'a', "{\\*\\bkmkstart index-0}{\\*\\bkmkend index-0}an index item"],
+      "a:name (no index item)" => ['<a name = "NoIndexItem"></a>no index item', 'a', "no index item"],
       "article" => ['<article><p>some text</p></article>', 'article', "\\sect\\sftnrstp\r\n{\\pard \\sa195\\qj some text\\par}\r\n"],
-      "newline without closing backslash" => ['<br>', 'br', "\\tab\\line\r\n"],
-      "newline with closing backslash" => ['<br />', 'br', "\\tab\\line\r\n"],
+      "b" => ['<b>bold</b>', 'b', "{\\b bold}"],
+      "br" => ['<br>', 'br', "\\tab\\line\r\n"],
+      "br (with closing slash)" => ['<br />', 'br', "\\tab\\line\r\n"],
+      "code" => ['<code>echo "foo";</code>', 'code', "{\\pard \\f1 echo \"foo\";\\par}\r\n"],
+      "del" => ['<del>delete</del>', 'del', "{\\strike delete}"],
       "div" => ['<div>text</div>', 'div', "text"],
       "h1" => ['<h1>header</h1>', 'h1', "{\\headerl\\pard \\ql\\b Book title\\par}\r\n{\\headerr\\pard \\qr header\\par}\r\n{\\footerl\\pard \\ql \\chpgn \\par}\r\n{\\footerr\\pard \\qr \\chpgn \\par}\r\n{\\*\\bkmkstart chapter1}{\\*\\bkmkend chapter1}\r\n{\\pard \\sa195\\fs32\\b\\keepn header\\par}\r\n"],
       "h2" => ['<h2>header</h2>', 'h2', "{\\pard \\sa0\\fs28\\b\\keepn header\\par}\r\n"],
@@ -116,23 +98,22 @@ class BookExportRtfTest extends UnitTestCase
       "h5" => ['<h5>header</h5>', 'h5', "{\\pard \\keepn header\\par}\r\n"],
       "h6" => ['<h6>header</h6>', 'h6', "{\\pard \\keepn header\\par}\r\n"],
       "head" => ['<head><title>page title</head>', 'head', ""],
-      "italic text" => ['<i>italic text</i>', 'i', "{\\i italic text}"],
-      "unordered list" => ['<ul><li>first item<li>second item</ul>', 'ul', "{\\pard \\fi-360\\sa0\\li720\\ql \\bullet\\tab first item\\par}\r\n{\\pard \\fi-360\\sa195\\li720\\ql \\bullet\\tab second item\\par}\r\n"],
-      "ordered list" => ['<ol><li>first item<li>second item</ol', 'ol', "{\\pard \\fi-360\\sa0\\li720\\ql  1.\\tab first item\\par}\r\n{\\pard \\fi-360\\sa195\\li720\\ql  2.\\tab second item\\par}\r\n"],
-      "complicated list" => ['<ol><li>first item<ul><li>second item</ul><li>third item<ul><li>fourth item</ul></ol>', 'ol', "{\\pard \\fi-360\\sa0\\li720\\ql  1.\\tab first item\\par}\r\n{\\pard \\fi-360\\sa0\\li1440\\ql \\bullet\\tab second item\\par}\r\n{\\pard \\fi-360\\sa0\\li720\\ql  2.\\tab third item\\par}\r\n{\\pard \\fi-360\\sa195\\li1440\\ql \\bullet\\tab fourth item\\par}\r\n"],
-      "list with short indent" => ['<ul><li class = "list-short-indent">first item</ul>', 'ul', "{\\pard \\fi-240\\sa195\\li360\\ql \\bullet\\tab first item\\par}\r\n"],
-      "p" => ['<p>Some text.</p>', 'p', "{\\pard \\sa195\\qj Some text.\\par}\r\n"],
-      "code" => ['<code>echo "foo";</code>', 'code', "{\\pard \\f1 echo \"foo\";\\par}\r\n"],
-      "s" => ['<s>strike through</s>', 's', "{\\strike strike through}"],
+      "i" => ['<i>italic text</i>', 'i', "{\\i italic text}"],
       "ins" => ['<ins>insert</ins>', 'ins', "{\\ul insert}"],
-      "del" => ['<del>delete</del>', 'del', "{\\strike delete}"],
+      "li (ol)" => ['<ol><li>first item<li>second item</ol>', 'ol', "{\\pard \\fi-360\\sa0\\li720\\ql  1.\\tab first item\\par}\r\n{\\pard \\fi-360\\sa195\\li720\\ql  2.\\tab second item\\par}\r\n"],
+      "li (ol with unordered sublists)" => ['<ol><li>first item<ul><li>second item</ul><li>third item<ul><li>fourth item</ul></ol>', 'ol', "{\\pard \\fi-360\\sa0\\li720\\ql  1.\\tab first item\\par}\r\n{\\pard \\fi-360\\sa0\\li1440\\ql \\bullet\\tab second item\\par}\r\n{\\pard \\fi-360\\sa0\\li720\\ql  2.\\tab third item\\par}\r\n{\\pard \\fi-360\\sa195\\li1440\\ql \\bullet\\tab fourth item\\par}\r\n"],
+      "li (ul)" => ['<ul><li>first item<li>second item</ul>', 'ul', "{\\pard \\fi-360\\sa0\\li720\\ql \\bullet\\tab first item\\par}\r\n{\\pard \\fi-360\\sa195\\li720\\ql \\bullet\\tab second item\\par}\r\n"],
+      "p" => ['<p>Some text.</p>', 'p', "{\\pard \\sa195\\qj Some text.\\par}\r\n"],
+      "p (display: none)" => ['<p style = "display: none;">Some text.</p>', 'p', ""],
+      "s" => ['<s>strike through</s>', 's', "{\\strike strike through}"],
       "span" => ['<span>span</span>', 'span', "{span}"],
+      "span (display: none)" => ['<span style = "display: none;">span</span>', 'span', ""],
       "strong" => ['<strong>strong</strong>', 'strong', "{\\b strong}"],
-      "b" => ['<b>bold</b>', 'b', "{\\b bold}"],
       "strike" => ['<strike>strike through</strike>', 'strike', "{\\strike strike through}"],
       "sub" => ['<sub>sub text</sub>', 'sub', "{\\sub sub text}"],
       "sup" => ['<sup>super text</sup>', 'sup', "{\\super super text}"],
-      "simple table" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr>', 'table', "{\\trowd\r\n\\cellx4655\r\n\\cellx9309\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
+      "table" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr></tbody></table>', 'table', "{\\trowd\r\n\\cellx4655\r\n\\cellx9309\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
+      "table (colspan)" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr><tr><td colspan = "2">double cell</td></tr></tbody></table>', 'table', "{\\trowd\r\n\\cellx4655\r\n\\cellx9309\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n\\trowd\r\n\\cellx9309\r\n\\pard\\intbl{\\ri30\\li30\\ql double cell}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
       "u" => ['<u>underline</u>', 'u', "{\\ul underline}"],
     ];
 
@@ -153,7 +134,6 @@ class BookExportRtfTest extends UnitTestCase
    * Test getting a css array from an element
    */
   public function test_get_css_from_element() {
-    $this->assertEquals($this->get_function("bookexportrtf_get_css_style_from_element", $this->testfile), $this->get_function("bookexportrtf_get_css_style_from_element", $this->codefile), "Failure cloning bookexportrtf_get_css_style_from_element()");
 
     // some extra css selectors for testing
     $this->bookexportrtf_css['#own-id'] = ['font-weight' => 'bold'];
@@ -249,7 +229,6 @@ class BookExportRtfTest extends UnitTestCase
    * redundant here, one test should be sufficient?
    */
   public function test_get_rtf_from_css() {
-    $this->assertEquals($this->get_function("bookexportrtf_get_rtf_style_from_css", $this->testfile), $this->get_function("bookexportrtf_get_rtf_style_from_css", $this->codefile), "Failure cloning bookexportrtf_get_rtf_style_from_css()");
 
     /**
      * first key: tag
@@ -261,173 +240,259 @@ class BookExportRtfTest extends UnitTestCase
      */
     $expected = [
       "div" => [
-        "font color" => [["color" => "blue"], "", "", ""],
-        "default font" => [["font-family" => "Calibri"], "", "", ""],
-        "new font" => [["font-family" => "Arial"], "", "", ""],
-        "two fonts" => [["font-family" => "Calibri, Arial"], "", "", ""],
-        "font size" => [["font-size" => "12pt"], "", "", ""],
-        "bold font weight" => [["font-weight" => "bold"], "", "", ""],
-        "normal font weight" => [["font-weight" => "normal"], "", "", ""],
-        "left aligned text" => [["text-align" => "left"], "", "", ""],
-        "right aligned text" => [["text-align" => "right"], "", "", ""],
-        "centered text" => [["text-align" => "center"], "", "", ""],
-        "justified text" => [["text-align" => "justify"], "", "", ""],
-        "underlined text" => [["text-decoration" => "underline"], "", "", ""],
-        "strike-trough" => [["text-decoration" => "line-through"], "", "", ""],
-        "no text decoration" => [["text-decoration" => "none"], "", "", ""],
-        "text decoration color" => [["text-decoration-color" => "red"], "", "", ""],
-        "text decoration solid" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "", ""],
-        "text decoration double" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "", ""],
-        "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "", ""],
-        "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "", ""],
-        "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "", ""],
-        "text indent" => [['text-indent' => '18pt'], "", "", ""],
-        "top margin" => [['margin-top' => '10px'], "", "", ""],
-        "right margin" => [['margin-right' => '10px'], "", "", ""],
-        "bottom margin" => [['margin-bottom' => '10px'], "", "", ""],
-        "left margin" => [['margin-left' => '10px'], "", "", ""],
-        "always break page before" => [['page-break-before' => 'always'], "\\page\r\n", "", ""],
-        "avoid page break before" => [['page-break-before' => 'avoid'], "", "", ""],
-        "always page break after" => [['page-break-after' => 'always'], "", "", "\\page\r\n"],
-        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
-        "border bottom" => [['border-bottom-width' => '1px'], "", "", ""],
-        "border bottom style solid" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
-        "border bottom style dotted" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
-        "border bottom style dashed" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
-        "border bottom style  double" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
-        "no border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
-        "hidden border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+        "border-bottom-style (solid)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
+        "border-bottom-style (dotted)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
+        "border-bottom-style (dashed)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
+        "border-bottom-style (double)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
+        "border-bottom-style (none)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
+        "border-bottom-style (hidden)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+        "border-bottom-width" => [['border-bottom-width' => '1px'], "", "", ""],
+        "border-left-style (solid)" => [['border-left-width' => '1px', 'border-left-style' => 'solid'], "", "", ""],
+        "border-left-style (dotted)" => [['border-left-width' => '1px', 'border-left-style' => 'dotted'], "", "", ""],
+        "border-left-style (dashed)" => [['border-left-width' => '1px', 'border-left-style' => 'dashed'], "", "", ""],
+        "border-left-style (double)" => [['border-left-width' => '1px', 'border-left-style' => 'double'], "", "", ""],
+        "border-left-style (none)" => [['border-left-width' => '1px', 'border-left-style' => 'none'], "", "", ""],
+        "border-left-style (hidden)" => [['border-left-width' => '1px', 'border-left-style' => 'hidden'], "", "", ""],
+        "border-left-width" => [['border-left-width' => '1px'], "", "", ""],
+        "border-right-style (solid)" => [['border-right-width' => '1px', 'border-right-style' => 'solid'], "", "", ""],
+        "border-right-style (dotted)" => [['border-right-width' => '1px', 'border-right-style' => 'dotted'], "", "", ""],
+        "border-right-style (dashed)" => [['border-right-width' => '1px', 'border-right-style' => 'dashed'], "", "", ""],
+        "border-right-style (double)" => [['border-right-width' => '1px', 'border-right-style' => 'double'], "", "", ""],
+        "border-right-style (none)" => [['border-right-width' => '1px', 'border-right-style' => 'none'], "", "", ""],
+        "border-right-style (hidden)" => [['border-right-width' => '1px', 'border-right-style' => 'hidden'], "", "", ""],
+        "border-right-width" => [['border-right-width' => '1px'], "", "", ""],
+        "border-top-style (solid)" => [['border-top-width' => '1px', 'border-top-style' => 'solid'], "", "", ""],
+        "border-top-style (dotted)" => [['border-top-width' => '1px', 'border-top-style' => 'dotted'], "", "", ""],
+        "border-top-style (dashed)" => [['border-top-width' => '1px', 'border-top-style' => 'dashed'], "", "", ""],
+        "border-top-style (double)" => [['border-top-width' => '1px', 'border-top-style' => 'double'], "", "", ""],
+        "border-top-style (none)" => [['border-top-width' => '1px', 'border-top-style' => 'none'], "", "", ""],
+        "border-top-style (hidden)" => [['border-top-width' => '1px', 'border-top-style' => 'hidden'], "", "", ""],
+        "border-top-width" => [['border-top-width' => '1px'], "", "", ""],
+        "color" => [["color" => "blue"], "", "", ""],
+        "font-family (default)" => [["font-family" => "Calibri"], "", "", ""],
+        "font-family (new)" => [["font-family" => "Arial"], "", "", ""],
+        "font-family (two)" => [["font-family" => "Calibri, Arial"], "", "", ""],
+        "font-size" => [["font-size" => "12pt"], "", "", ""],
+        "font-weight (bold)" => [["font-weight" => "bold"], "", "", ""],
+        "font-weight (normal)" => [["font-weight" => "normal"], "", "", ""],
+        "margin-bottom" => [['margin-bottom' => '10px'], "", "", ""],
+        "margin-left" => [['margin-left' => '10px'], "", "", ""],
+        "margin-right" => [['margin-right' => '10px'], "", "", ""],
+        "margin-top" => [['margin-top' => '10px'], "", "", ""],
+        "page-break-after (always)" => [['page-break-after' => 'always'], "", "", "\\page\r\n"],
+        "page-break-after (avoid)" => [['page-break-after' => 'avoid'], "", "", ""],
+        "page-break-before (always)" => [['page-break-before' => 'always'], "\\page\r\n", "", ""],
+        "page-break-before (avoid)" => [['page-break-before' => 'avoid'], "", "", ""],
+        "text-align (left)" => [["text-align" => "left"], "", "", ""],
+        "text-align (right)" => [["text-align" => "right"], "", "", ""],
+        "text-align (center)" => [["text-align" => "center"], "", "", ""],
+        "text-align (justify)" => [["text-align" => "justify"], "", "", ""],
+        "text-decoration (underline)" => [["text-decoration" => "underline"], "", "", ""],
+        "text-decoration (line-through)" => [["text-decoration" => "line-through"], "", "", ""],
+        "text-decorarion (none)" => [["text-decoration" => "none"], "", "", ""],
+        "text-decoration-color" => [["text-decoration-color" => "red"], "", "", ""],
+        "text-decoration-style (solid)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "", ""],
+        "text-decoration-style (double)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "", ""],
+        "text-decoration-style (dashed)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "", ""],
+        "text-decoration-style (dotted)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "", ""],
+        "text-decoration-style (wavy)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "", ""],
+        "text-indent" => [['text-indent' => '18pt'], "", "", ""],
+        "vertical align top" => [['vertical-align' => 'top'], "", "", ""],
+        "vertical align middle" => [['vertical-align' => 'middle'], "", "", ""],
+        "vertical align bottom" => [['vertical-align' => 'bottom'], "", "", ""],
       ],
       "p" => [
-        "font color" => [["color" => "blue"], "", "\\cf4 ", ""],
-        "default font" => [["font-family" => "Calibri"], "", "", ""],
-        "new font" => [["font-family" => "Arial"], "", "\\f1 ", ""],
-        "two fonts" => [["font-family" => "Calibri, Arial"], "", "", ""],
-        "font size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
-        "bold font weight" => [["font-weight" => "bold"], "", "\\b ", ""],
-        "normal font weight" => [["font-weight" => "normal"], "", "", ""],
-        "left aligned text" => [["text-align" => "left"], "", "\\ql ", ""],
-        "right aligned text" => [["text-align" => "right"], "", "\\qr ", ""],
-        "centered text" => [["text-align" => "center"], "", "\\qc ", ""],
-        "justified text" => [["text-align" => "justify"], "", "\\qj ", ""],
-        "underlined text" => [["text-decoration" => "underline"], "", "\\ul ", ""],
-        "strike-trough" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
-        "no text decoration" => [["text-decoration" => "none"], "", "", ""],
-        "text decoration color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
-        "text decoration solid" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
-        "text decoration double" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
-        "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
-        "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
-        "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
-        "text indent" => [['text-indent' => '18pt'], "", "\\fi360 ", ""],
-        "top margin" => [['margin-top' => '10px'], "", "\\sb150 ", ""],
-        "right margin" => [['margin-right' => '10px'], "", "\\ri150 ", ""],
-        "bottom margin" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
-        "left margin" => [['margin-left' => '10px'], "", "\\li150 ", ""],
-        "always break page before" => [['page-break-before' => 'always'], "", "", ""],
-        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
-        "always page break after" => [['page-break-after' => 'always'], "", "", ""],
-        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
-        "border bottom" => [['border-bottom-width' => '1px'], "", "", ""],
-        "border bottom style solid" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
-        "border bottom style dotted" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
-        "border bottom style dashed" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
-        "border bottom style  double" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
-        "no border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
-        "hidden border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+        "border-bottom-style (solid)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
+        "border-bottom-style (dotted)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
+        "border-bottom-style (dashed)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
+        "border-bottom-style (double)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
+        "border-bottom-style (none)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
+        "border-bottom-style (hidden)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+        "border-bottom-width" => [['border-bottom-width' => '1px'], "", "", ""],
+        "border-left-style (solid)" => [['border-left-width' => '1px', 'border-left-style' => 'solid'], "", "", ""],
+        "border-left-style (dotted)" => [['border-left-width' => '1px', 'border-left-style' => 'dotted'], "", "", ""],
+        "border-left-style (dashed)" => [['border-left-width' => '1px', 'border-left-style' => 'dashed'], "", "", ""],
+        "border-left-style (double)" => [['border-left-width' => '1px', 'border-left-style' => 'double'], "", "", ""],
+        "border-left-style (none)" => [['border-left-width' => '1px', 'border-left-style' => 'none'], "", "", ""],
+        "border-left-style (hidden)" => [['border-left-width' => '1px', 'border-left-style' => 'hidden'], "", "", ""],
+        "border-left-width" => [['border-left-width' => '1px'], "", "", ""],
+        "border-right-style (solid)" => [['border-right-width' => '1px', 'border-right-style' => 'solid'], "", "", ""],
+        "border-right-style (dotted)" => [['border-right-width' => '1px', 'border-right-style' => 'dotted'], "", "", ""],
+        "border-right-style (dashed)" => [['border-right-width' => '1px', 'border-right-style' => 'dashed'], "", "", ""],
+        "border-right-style (double)" => [['border-right-width' => '1px', 'border-right-style' => 'double'], "", "", ""],
+        "border-right-style (none)" => [['border-right-width' => '1px', 'border-right-style' => 'none'], "", "", ""],
+        "border-right-style (hidden)" => [['border-right-width' => '1px', 'border-right-style' => 'hidden'], "", "", ""],
+        "border-right-width" => [['border-right-width' => '1px'], "", "", ""],
+        "border-top-style (solid)" => [['border-top-width' => '1px', 'border-top-style' => 'solid'], "", "", ""],
+        "border-top-style (dotted)" => [['border-top-width' => '1px', 'border-top-style' => 'dotted'], "", "", ""],
+        "border-top-style (dashed)" => [['border-top-width' => '1px', 'border-top-style' => 'dashed'], "", "", ""],
+        "border-top-style (double)" => [['border-top-width' => '1px', 'border-top-style' => 'double'], "", "", ""],
+        "border-top-style (none)" => [['border-top-width' => '1px', 'border-top-style' => 'none'], "", "", ""],
+        "border-top-style (hidden)" => [['border-top-width' => '1px', 'border-top-style' => 'hidden'], "", "", ""],
+        "border-top-width" => [['border-top-width' => '1px'], "", "", ""],
+        "color" => [["color" => "blue"], "", "\\cf4 ", ""],
+        "font-family (default)" => [["font-family" => "Calibri"], "", "", ""],
+        "font-family (new)" => [["font-family" => "Arial"], "", "\\f1 ", ""],
+        "font-family (two)" => [["font-family" => "Calibri, Arial"], "", "", ""],
+        "font-size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
+        "font-weight (bold)" => [["font-weight" => "bold"], "", "\\b ", ""],
+        "font-weight (normal)" => [["font-weight" => "normal"], "", "", ""],
+        "margin-bottom" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
+        "margin-left" => [['margin-left' => '10px'], "", "\\li150 ", ""],
+        "margin-right" => [['margin-right' => '10px'], "", "\\ri150 ", ""],
+        "margin-top" => [['margin-top' => '10px'], "", "\\sb150 ", ""],
+        "page-break-after (always)" => [['page-break-after' => 'always'], "", "", ""],
+        "page-break-after (avoid)" => [['page-break-after' => 'avoid'], "", "", ""],
+        "page-break-before (always)" => [['page-break-before' => 'always'], "", "", ""],
+        "page-break-before (avoid)" => [['page-break-before' => 'avoid'], "", "", ""],
+        "text-align (left)" => [["text-align" => "left"], "", "\\ql ", ""],
+        "text-align (right)" => [["text-align" => "right"], "", "\\qr ", ""],
+        "text-align (center)" => [["text-align" => "center"], "", "\\qc ", ""],
+        "text-align (justify)" => [["text-align" => "justify"], "", "\\qj ", ""],
+        "text-decoration (underline)" => [["text-decoration" => "underline"], "", "\\ul ", ""],
+        "text-decoration (line-through)" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
+        "text-decorarion (none)" => [["text-decoration" => "none"], "", "", ""],
+        "text-decoration-color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
+        "text-decoration-style (solid)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
+        "text-decoration-style (double)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
+        "text-decoration-style (dashed)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
+        "text-decoration-style (dotted)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
+        "text-decoration-style (wavy)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "text-indent" => [['text-indent' => '18pt'], "", "\\fi360 ", ""],
         "vertical align top" => [['vertical-align' => 'top'], "", "", ""],
         "vertical align middle" => [['vertical-align' => 'middle'], "", "", ""],
         "vertical align bottom" => [['vertical-align' => 'bottom'], "", "", ""],
       ],
       "h1" => [
-        "always break page before" => [['page-break-before' => 'always'], "\\page\r\n", "", ""],
-        "void page break before" => [['page-break-before' => 'auto'], "", "", ""],
-        "always page break after" => [['page-break-after' => 'always'], "", "", "\\page\r\n"],
-        "void page break before" => [['page-break-after' => 'auto'], "", "", ""],
-        "avoid page break after" => [['page-break-after' => 'avoid'], "", "\\keepn ", ""],
+        "page-break-after (always)" => [['page-break-after' => 'always'], "", "", "\\page\r\n"],
+        "page-break-after (avoid)" => [['page-break-after' => 'avoid'], "", "\\keepn ", ""],
+        "page-break-before (always)" => [['page-break-before' => 'always'], "\\page\r\n", "", ""],
+        "page-break-before (avoid)" => [['page-break-before' => 'avoid'], "", "", ""],
       ],
       "article" => [
-        "always break page before" => [['page-break-before' => 'always'], "", "\\sbkpage ", ""],
-        "avoid break page before" => [['page-break-before' => 'avoid'], "", "\\sbknone ", ""],
+        "page-break-before (always)" => [['page-break-before' => 'always'], "", "\\sbkpage ", ""],
+        "page-break-before (avoid)" => [['page-break-before' => 'avoid'], "", "\\sbknone ", ""],
       ],
       "td" => [
-        "font color" => [["color" => "blue"], "", "\\cf4 ", ""],
-        "default font" => [["font-family" => "Calibri"], "", "", ""],
-        "new font" => [["font-family" => "Arial"], "", "\\f1 ", ""],
-        "two fonts" => [["font-family" => "Calibri, Arial"], "", "", ""],
-        "font size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
-        "bold font weight" => [["font-weight" => "bold"], "", "\\b ", ""],
-        "normal font weight" => [["font-weight" => "normal"], "", "", ""],
-        "left aligned text" => [["text-align" => "left"], "", "\\ql ", ""],
-        "right aligned text" => [["text-align" => "right"], "", "\\qr ", ""],
-        "centered text" => [["text-align" => "center"], "", "\\qc ", ""],
-        "justified text" => [["text-align" => "justify"], "", "\\qj ", ""],
-        "underlined text" => [["text-decoration" => "underline"], "", "\\ul ", ""],
-        "strike-trough" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
-        "no text decoration" => [["text-decoration" => "none"], "", "", ""],
-        "text decoration color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
-        "text decoration solid" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
-        "text decoration double" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
-        "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
-        "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
-        "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
-        "text indent" => [['text-indent' => '18pt'], "", "\\fi360 ", ""],
-        "top margin" => [['margin-top' => '10px'], "", "\\sb150 ", ""],
-        "right margin" => [['margin-right' => '10px'], "", "\\ri150 ", ""],
-        "bottom margin" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
-        "left margin" => [['margin-left' => '10px'], "", "\\li150 ", ""],
-        "always break page before" => [['page-break-before' => 'always'], "", "", ""],
-        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
-        "always page break after" => [['page-break-after' => 'always'], "", "", ""],
-        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
-        "border bottom" => [['border-bottom-width' => '1px'], "\\clbrdrb\\brdrw15\\brdrs \r\n", "", ""],
-        "border bottom style solid" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "\\clbrdrb\\brdrw15\\brdrs \r\n", "", ""],
-        "border bottom style dotted" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "\\clbrdrb\\brdrw15\\brdrdot \r\n", "", ""],
-        "border bottom style dashed" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "\\clbrdrb\\brdrw15\\brdrdash \r\n", "", ""],
-        "border bottom style  double" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "\\clbrdrb\\brdrw15\\brdrdb \r\n", "", ""],
-        "no border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "\\clbrdrb\\brdrw15\\brdrnone \r\n", "", ""],
-        "hidden border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "\\clbrdrb\\brdrw15\\brdrnone \r\n", "", ""],
-        "vertical align top" => [['vertical-align' => 'top'], "\\clvertalt\r\n", "", ""],
-        "vertical align middle" => [['vertical-align' => 'middle'], "\\clvertalc\r\n", "", ""],
-        "vertical align bottom" => [['vertical-align' => 'bottom'], "\\clvertalb\r\n", "", ""],
+        "border-bottom-style (solid)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "\\clbrdrb\\brdrw15\\brdrs \r\n", "", ""],
+        "border-bottom-style (dotted)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "\\clbrdrb\\brdrw15\\brdrdot \r\n", "", ""],
+        "border-bottom-style (dashed)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "\\clbrdrb\\brdrw15\\brdrdash \r\n", "", ""],
+        "border-bottom-style (double)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "\\clbrdrb\\brdrw15\\brdrdb \r\n", "", ""],
+        "border-bottom-style (none)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "\\clbrdrb\\brdrw15\\brdrnone \r\n", "", ""],
+        "border-bottom-style (hidden)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "\\clbrdrb\\brdrw15\\brdrnone \r\n", "", ""],
+        "border-bottom-width" => [['border-bottom-width' => '1px'], "\\clbrdrb\\brdrw15\\brdrs \r\n", "", ""],
+        "border-left-style (solid)" => [['border-left-width' => '1px', 'border-left-style' => 'solid'], "\\clbrdrl\\brdrw15\\brdrs \r\n", "", ""],
+        "border-left-style (dotted)" => [['border-left-width' => '1px', 'border-left-style' => 'dotted'], "\\clbrdrl\\brdrw15\\brdrdot \r\n", "", ""],
+        "border-left-style (dashed)" => [['border-left-width' => '1px', 'border-left-style' => 'dashed'], "\\clbrdrl\\brdrw15\\brdrdash \r\n", "", ""],
+        "border-left-style (double)" => [['border-left-width' => '1px', 'border-left-style' => 'double'], "\\clbrdrl\\brdrw15\\brdrdb \r\n", "", ""],
+        "border-left-style (none)" => [['border-left-width' => '1px', 'border-left-style' => 'none'], "\\clbrdrl\\brdrw15\\brdrnone \r\n", "", ""],
+        "border-left-style (hidden)" => [['border-left-width' => '1px', 'border-left-style' => 'hidden'], "\\clbrdrl\\brdrw15\\brdrnone \r\n", "", ""],
+        "border-left-width" => [['border-left-width' => '1px'], "\\clbrdrl\\brdrw15\\brdrs \r\n", "", ""],
+        "border-right-style (solid)" => [['border-right-width' => '1px', 'border-right-style' => 'solid'], "\\clbrdrr\\brdrw15\\brdrs \r\n", "", ""],
+        "border-right-style (dotted)" => [['border-right-width' => '1px', 'border-right-style' => 'dotted'], "\\clbrdrr\\brdrw15\\brdrdot \r\n", "", ""],
+        "border-right-style (dashed)" => [['border-right-width' => '1px', 'border-right-style' => 'dashed'], "\\clbrdrr\\brdrw15\\brdrdash \r\n", "", ""],
+        "border-right-style (double)" => [['border-right-width' => '1px', 'border-right-style' => 'double'], "\\clbrdrr\\brdrw15\\brdrdb \r\n", "", ""],
+        "border-right-style (none)" => [['border-right-width' => '1px', 'border-right-style' => 'none'], "\\clbrdrr\\brdrw15\\brdrnone \r\n", "", ""],
+        "border-right-style (hidden)" => [['border-right-width' => '1px', 'border-right-style' => 'hidden'], "\\clbrdrr\\brdrw15\\brdrnone \r\n", "", ""],
+        "border-right-width" => [['border-right-width' => '1px'], "\\clbrdrr\\brdrw15\\brdrs \r\n", "", ""],
+        "border-top-style (solid)" => [['border-top-width' => '1px', 'border-top-style' => 'solid'], "\\clbrdrt\\brdrw15\\brdrs \r\n", "", ""],
+        "border-top-style (dotted)" => [['border-top-width' => '1px', 'border-top-style' => 'dotted'], "\\clbrdrt\\brdrw15\\brdrdot \r\n", "", ""],
+        "border-top-style (dashed)" => [['border-top-width' => '1px', 'border-top-style' => 'dashed'], "\\clbrdrt\\brdrw15\\brdrdash \r\n", "", ""],
+        "border-top-style (double)" => [['border-top-width' => '1px', 'border-top-style' => 'double'], "\\clbrdrt\\brdrw15\\brdrdb \r\n", "", ""],
+        "border-top-style (none)" => [['border-top-width' => '1px', 'border-top-style' => 'none'], "\\clbrdrt\\brdrw15\\brdrnone \r\n", "", ""],
+        "border-top-style (hidden)" => [['border-top-width' => '1px', 'border-top-style' => 'hidden'], "\\clbrdrt\\brdrw15\\brdrnone \r\n", "", ""],
+        "border-top-width" => [['border-top-width' => '1px'], "\\clbrdrt\\brdrw15\\brdrs \r\n", "", ""],
+        "color" => [["color" => "blue"], "", "\\cf4 ", ""],
+        "font-family (default)" => [["font-family" => "Calibri"], "", "", ""],
+        "font-family (new)" => [["font-family" => "Arial"], "", "\\f1 ", ""],
+        "font-family (two)" => [["font-family" => "Calibri, Arial"], "", "", ""],
+        "font-size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
+        "font-weight (bold)" => [["font-weight" => "bold"], "", "\\b ", ""],
+        "font-weight (normal)" => [["font-weight" => "normal"], "", "", ""],
+        "margin-bottom" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
+        "margin-left" => [['margin-left' => '10px'], "", "\\li150 ", ""],
+        "margin-right" => [['margin-right' => '10px'], "", "\\ri150 ", ""],
+        "margin-top" => [['margin-top' => '10px'], "", "\\sb150 ", ""],
+        "page-break-after (always)" => [['page-break-after' => 'always'], "", "", ""],
+        "page-break-after (avoid)" => [['page-break-after' => 'avoid'], "", "", ""],
+        "page-break-before (always)" => [['page-break-before' => 'always'], "", "", ""],
+        "page-break-before (avoid)" => [['page-break-before' => 'avoid'], "", "", ""],
+        "text-align (left)" => [["text-align" => "left"], "", "\\ql ", ""],
+        "text-align (right)" => [["text-align" => "right"], "", "\\qr ", ""],
+        "text-align (center)" => [["text-align" => "center"], "", "\\qc ", ""],
+        "text-align (justify)" => [["text-align" => "justify"], "", "\\qj ", ""],
+        "text-decoration (underline)" => [["text-decoration" => "underline"], "", "\\ul ", ""],
+        "text-decoration (line-through)" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
+        "text-decorarion (none)" => [["text-decoration" => "none"], "", "", ""],
+        "text-decoration-color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
+        "text-decoration-style (solid)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
+        "text-decoration-style (double)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
+        "text-decoration-style (dashed)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
+        "text-decoration-style (dotted)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
+        "text-decoration-style (wavy)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "text-indent" => [['text-indent' => '18pt'], "", "\\fi360 ", ""],
+        "vertical-align (top)" => [['vertical-align' => 'top'], "\\clvertalt\r\n", "", ""],
+        "vertical-align (middle)" => [['vertical-align' => 'middle'], "\\clvertalc\r\n", "", ""],
+        "vertical-align (bottom)" => [['vertical-align' => 'bottom'], "\\clvertalb\r\n", "", ""],
       ],
       "span" => [
-        "font color" => [["color" => "blue"], "", "\\cf4 ", ""],
-        "default font" => [["font-family" => "Calibri"], "", "", ""],
-        "new font" => [["font-family" => "Arial"], "", "\\f1 ", ""],
-        "two fonts" => [["font-family" => "Calibri, Arial"], "", "", ""],
-        "font size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
-        "bold font weight" => [["font-weight" => "bold"], "", "\\b ", ""],
-        "normal font weight" => [["font-weight" => "normal"], "", "", ""],
-        "left aligned text" => [["text-align" => "left"], "", "", ""],
-        "right aligned text" => [["text-align" => "right"], "", "", ""],
-        "centered text" => [["text-align" => "center"], "", "", ""],
-        "justified text" => [["text-align" => "justify"], "", "", ""],
-        "underlined text" => [["text-decoration" => "underline"], "", "\\ul ", ""],
-        "strike-trough" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
-        "no text decoration" => [["text-decoration" => "none"], "", "", ""],
-        "text decoration color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
-        "text decoration solid" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
-        "text decoration double" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
-        "text decoration dashed" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
-        "text decoration dotted" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
-        "text decoration wavy" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
-        "text indent" => [['text-indent' => '18pt'], "", "", ""],
-        "top margin" => [['margin-top' => '10px'], "", "", ""],
-        "right margin" => [['margin-right' => '10px'], "", "", ""],
-        "bottom margin" => [['margin-bottom' => '10px'], "", "", ""],
-        "left margin" => [['margin-left' => '10px'], "", "", ""],
-        "always break page before" => [['page-break-before' => 'always'], "", "", ""],
-        "void page break before" => [['page-break-before' => 'avoid'], "", "", ""],
-        "always page break after" => [['page-break-after' => 'always'], "", "", ""],
-        "avoid page break after" => [['page-break-after' => 'avoid'], "", "", ""],
-        "border bottom" => [['border-bottom-width' => '1px'], "", "", ""],
-        "border bottom style solid" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
-        "border bottom style dotted" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
-        "border bottom style dashed" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
-        "border bottom style  double" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
-        "no border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
-        "hidden border bottom" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+        "border-bottom-style (solid)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'solid'], "", "", ""],
+        "border-bottom-style (dotted)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dotted'], "", "", ""],
+        "border-bottom-style (dashed)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'dashed'], "", "", ""],
+        "border-bottom-style (double)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'double'], "", "", ""],
+        "border-bottom-style (none)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'none'], "", "", ""],
+        "border-bottom-style (hidden)" => [['border-bottom-width' => '1px', 'border-bottom-style' => 'hidden'], "", "", ""],
+        "border-bottom-width" => [['border-bottom-width' => '1px'], "", "", ""],
+        "border-left-style (solid)" => [['border-left-width' => '1px', 'border-left-style' => 'solid'], "", "", ""],
+        "border-left-style (dotted)" => [['border-left-width' => '1px', 'border-left-style' => 'dotted'], "", "", ""],
+        "border-left-style (dashed)" => [['border-left-width' => '1px', 'border-left-style' => 'dashed'], "", "", ""],
+        "border-left-style (double)" => [['border-left-width' => '1px', 'border-left-style' => 'double'], "", "", ""],
+        "border-left-style (none)" => [['border-left-width' => '1px', 'border-left-style' => 'none'], "", "", ""],
+        "border-left-style (hidden)" => [['border-left-width' => '1px', 'border-left-style' => 'hidden'], "", "", ""],
+        "border-left-width" => [['border-left-width' => '1px'], "", "", ""],
+        "border-right-style (solid)" => [['border-right-width' => '1px', 'border-right-style' => 'solid'], "", "", ""],
+        "border-right-style (dotted)" => [['border-right-width' => '1px', 'border-right-style' => 'dotted'], "", "", ""],
+        "border-right-style (dashed)" => [['border-right-width' => '1px', 'border-right-style' => 'dashed'], "", "", ""],
+        "border-right-style (double)" => [['border-right-width' => '1px', 'border-right-style' => 'double'], "", "", ""],
+        "border-right-style (none)" => [['border-right-width' => '1px', 'border-right-style' => 'none'], "", "", ""],
+        "border-right-style (hidden)" => [['border-right-width' => '1px', 'border-right-style' => 'hidden'], "", "", ""],
+        "border-right-width" => [['border-right-width' => '1px'], "", "", ""],
+        "border-top-style (solid)" => [['border-top-width' => '1px', 'border-top-style' => 'solid'], "", "", ""],
+        "border-top-style (dotted)" => [['border-top-width' => '1px', 'border-top-style' => 'dotted'], "", "", ""],
+        "border-top-style (dashed)" => [['border-top-width' => '1px', 'border-top-style' => 'dashed'], "", "", ""],
+        "border-top-style (double)" => [['border-top-width' => '1px', 'border-top-style' => 'double'], "", "", ""],
+        "border-top-style (none)" => [['border-top-width' => '1px', 'border-top-style' => 'none'], "", "", ""],
+        "border-top-style (hidden)" => [['border-top-width' => '1px', 'border-top-style' => 'hidden'], "", "", ""],
+        "border-top-width" => [['border-top-width' => '1px'], "", "", ""],
+        "color" => [["color" => "blue"], "", "\\cf4 ", ""],
+        "font-family (default)" => [["font-family" => "Calibri"], "", "", ""],
+        "font-family (new)" => [["font-family" => "Arial"], "", "\\f1 ", ""],
+        "font-family (two)" => [["font-family" => "Calibri, Arial"], "", "", ""],
+        "font-size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
+        "font-weight (bold)" => [["font-weight" => "bold"], "", "\\b ", ""],
+        "font-weight (normal)" => [["font-weight" => "normal"], "", "", ""],
+        "margin-bottom" => [['margin-bottom' => '10px'], "", "", ""],
+        "margin-left" => [['margin-left' => '10px'], "", "", ""],
+        "margin-right" => [['margin-right' => '10px'], "", "", ""],
+        "margin-top" => [['margin-top' => '10px'], "", "", ""],
+        "page-break-after (always)" => [['page-break-after' => 'always'], "", "", ""],
+        "page-break-after (avoid)" => [['page-break-after' => 'avoid'], "", "", ""],
+        "page-break-before (always)" => [['page-break-before' => 'always'], "", "", ""],
+        "page-break-before (avoid)" => [['page-break-before' => 'avoid'], "", "", ""],
+        "text-align (left)" => [["text-align" => "left"], "", "", ""],
+        "text-align (right)" => [["text-align" => "right"], "", "", ""],
+        "text-align (center)" => [["text-align" => "center"], "", "", ""],
+        "text-align (justify)" => [["text-align" => "justify"], "", "", ""],
+        "text-decoration (underline)" => [["text-decoration" => "underline"], "", "\\ul ", ""],
+        "text-decoration (line-through)" => [["text-decoration" => "line-through"], "", "\\strike ", ""],
+        "text-decorarion (none)" => [["text-decoration" => "none"], "", "", ""],
+        "text-decoration-color" => [["text-decoration-color" => "red"], "", "\\ulc2 ", ""],
+        "text-decoration-style (solid)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'solid'], "", "\\ul ", ""],
+        "text-decoration-style (double)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'double'], "", "\\uldb ", ""],
+        "text-decoration-style (dashed)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dashed'], "", "\\uldash ", ""],
+        "text-decoration-style (dotted)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'dotted'], "", "\\uld ", ""],
+        "text-decoration-style (wavy)" => [['text-decoration' => 'underline', 'text-decoration-style' => 'wavy'], "", "\\ulwave ", ""],
+        "text-indent" => [['text-indent' => '18pt'], "", "", ""],
         "vertical align top" => [['vertical-align' => 'top'], "", "", ""],
         "vertical align middle" => [['vertical-align' => 'middle'], "", "", ""],
         "vertical align bottom" => [['vertical-align' => 'bottom'], "", "", ""],
@@ -442,7 +507,6 @@ class BookExportRtfTest extends UnitTestCase
         $this->assertEquals($expected[$tag][$test][3], $result[2], "Failure setting style suffix for " . $test . " of " . $tag);
       }
     }
-
   }
 
   /**
@@ -454,7 +518,6 @@ class BookExportRtfTest extends UnitTestCase
    * If a color is invalid should return 0 (the default color).
    */
   public function test_color() {
-    $this->assertEquals($this->get_function("bookexportrtf_convert_color", $this->testfile), $this->get_function("bookexportrtf_convert_color", $this->codefile), "Failure cloning bookexportrtf_convert_length()");
     $this->assertEquals(1, $this->bookexportrtf_convert_color("#000000"), "Failure to convert HTML black");
     $this->assertEquals(2, $this->bookexportrtf_convert_color("#FF0000"), "Failure to convert HTML red");
     $this->assertEquals(3, $this->bookexportrtf_convert_color("#00FF00"), "Failure to convert HTML green");
@@ -464,7 +527,7 @@ class BookExportRtfTest extends UnitTestCase
     $this->assertEquals(7, $this->bookexportrtf_convert_color("#7FFF00"), "Failure to add new HTML color chartreuse");
     $this->assertArrayHasKey("\\red127\\green255\\blue0", $this->bookexportrtf_colortbl, "Failure to add new HTML color chartreuse");
     $this->assertEquals(0, $this->bookexportrtf_convert_color("#FG00000"), "Failure on invalid HTML color");
-    $this->assertEquals($this->bookexportrtf_colortbl["\\red127\\green255\\blue0"], 7, "Failure to add new HTML color chartreuse at the correct position");
+    $this->assertEquals(7, $this->bookexportrtf_colortbl["\\red127\\green255\\blue0"], "Failure to add new HTML color at the correct position");
     $this->assertEquals(1, $this->bookexportrtf_convert_color("black"), "Failure to convert colorname black");
     $this->assertEquals(2, $this->bookexportrtf_convert_color("red"), "Failure to convert colorname red");
     $this->assertEquals(3, $this->bookexportrtf_convert_color("lime"), "Failure to convert colorname lime (green)");
@@ -488,7 +551,6 @@ class BookExportRtfTest extends UnitTestCase
    * Defaults to 0 twips on failure.
    */
   public function test_length() {
-    $this->assertEquals($this->get_function("bookexportrtf_convert_length", $this->testfile), $this->get_function("bookexportrtf_convert_length", $this->codefile), "Failure cloning bookexportrtf_convert_length()");
     $this->assertEquals(0, $this->bookexportrtf_convert_length("foo"), "Failure to convert invalid length");
     $this->assertEquals(56693, $this->bookexportrtf_convert_length("100cm"),  "Failure to convert length (cm)");
     $this->assertEquals(5669, $this->bookexportrtf_convert_length("100mm"), "Failure to convert length (mm)");
@@ -505,14 +567,40 @@ class BookExportRtfTest extends UnitTestCase
    * Defaults to 24 half points on failure.
    */
   public function test_font_size() {
-    $this->assertEquals($this->get_function("bookexportrtf_convert_font_size", $this->testfile), $this->get_function("bookexportrtf_convert_font_size", $this->codefile), "Failure cloning bookexportrtf_convert_length()");
-    $this->assertEquals(24, $this->bookexportrtf_convert_font_size("foo"), "Failure to convert invalid font size");
+   $this->assertEquals(24, $this->bookexportrtf_convert_font_size("foo"), "Failure to convert invalid font size");
     $this->assertEquals(5669, $this->bookexportrtf_convert_font_size("100cm"), "Failure to convert font size (cm)");
     $this->assertEquals(567, $this->bookexportrtf_convert_font_size("100mm"), "Failure to convert font size (mm)");
     $this->assertEquals(14400, $this->bookexportrtf_convert_font_size("100in"), "Failure to convert font size (in)");
     $this->assertEquals(150, $this->bookexportrtf_convert_font_size("100px"), "Failure to convert font size (px)");
     $this->assertEquals(200, $this->bookexportrtf_convert_font_size("100pt"), "Failure to convert font size (pt)");
     $this->assertEquals(2400, $this->bookexportrtf_convert_font_size("100pc"), "Failure to convert font size (pc)");
+  }
+  /**
+   * Test function clones
+   *
+   * Loading the BookExportRtfController class ends up in problems with
+   * dependencies. Furthermore some of the functions to be tested are private
+   * and can not be called by the test file.
+   *
+   * A work around is to copy paste the functions to this file and then test
+   * them. For this it's required to test whether the function had been copied
+   * correctly. Of course, the function to grab the functions is also tested.
+   *
+   * These tests are separated from the main tests so function can be altered
+   * here, tested if they behave properly and then copied to the main file.
+   *
+   * A more proper solution would be to move a lot of the conversion
+   * functionality to a separate library with public functions.
+   */
+
+  public function test_function_clones() {
+    $this->assertEquals("function get_test_function() {\n    //foo\n", $this->get_function("get_test_function", $this->testfile), "Failure cloning get_test_function()");
+    $this->assertEquals($this->get_function("bookexportrtf_traverse", $this->testfile), $this->get_function("bookexportrtf_traverse", $this->codefile), "Failure cloning bookexportrtf_traverse()");
+    $this->assertEquals($this->get_function("bookexportrtf_get_css_style_from_element", $this->testfile), $this->get_function("bookexportrtf_get_css_style_from_element", $this->codefile), "Failure cloning bookexportrtf_get_css_style_from_element()");
+    $this->assertEquals($this->get_function("bookexportrtf_get_rtf_style_from_css", $this->testfile), $this->get_function("bookexportrtf_get_rtf_style_from_css", $this->codefile), "Failure cloning bookexportrtf_get_rtf_style_from_css()");
+    $this->assertEquals($this->get_function("bookexportrtf_convert_color", $this->testfile), $this->get_function("bookexportrtf_convert_color", $this->codefile), "Failure cloning bookexportrtf_convert_length()");
+    $this->assertEquals($this->get_function("bookexportrtf_convert_length", $this->testfile), $this->get_function("bookexportrtf_convert_length", $this->codefile), "Failure cloning bookexportrtf_convert_length()");
+    $this->assertEquals($this->get_function("bookexportrtf_convert_font_size", $this->testfile), $this->get_function("bookexportrtf_convert_font_size", $this->codefile), "Failure cloning bookexportrtf_convert_length()");
   }
 
   /**
@@ -645,16 +733,31 @@ class BookExportRtfTest extends UnitTestCase
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $rtf = $style[0];
-          $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-left");
-          $rtf .= "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
-          $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-right");
-          $rtf .= "{\\headerr\\pard ". $header_style[1] . $title . "\\par}\r\n";
-          $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-left");
-          $rtf .= "{\\footerl\\pard ". $footer_style[1] . "\\chpgn \\par}\r\n";
-          $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-right");
-          $rtf .= "{\\footerr\\pard ". $footer_style[1] . "\\chpgn \\par}\r\n";
 
-          //
+          // set headers and footers
+          foreach ([".header-left", ".header-right", ".footer-left", ".footer-right"] as $selector) {
+            $css = $this->bookexportrtf_css[$selector];
+            if (!array_key_exists("display", $css)) {
+              $css["display"] = "initial";
+            }
+            if (trim($css["display"]) != "none") {
+              $element_style = $this->bookexportrtf_get_rtf_style_from_selector($selector);
+              if ($selector == ".header-left") {
+                $rtf .= "{\\headerl\\pard ". $element_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
+              }
+              else if ($selector == ".header-right") {
+                $rtf .= "{\\headerr\\pard ". $element_style[1] . $title . "\\par}\r\n";
+              }
+              else if ($selector == ".footer-left") {
+                $rtf .= "{\\footerl\\pard ". $element_style[1] . "\\chpgn \\par}\r\n";
+              }
+              else if ($selector == ".footer-right") {
+                $rtf .= "{\\footerr\\pard ". $element_style[1] . "\\chpgn \\par}\r\n";
+              }
+            }
+          }
+
+          // add the chapter to the toc and make a bookmark
           array_push($this->bookexportrtf_toc, $title);
           $tid = count($this->bookexportrtf_toc);
           $rtf .= "{\\*\\bkmkstart chapter".$tid."}{\\*\\bkmkend chapter".$tid."}\r\n";
@@ -717,7 +820,6 @@ class BookExportRtfTest extends UnitTestCase
           $rtf .= "\\pichgoal" . $picheight;
           $rtf .= "\\picscalex" . $scalex;
           $rtf .= "\\picscaley" . $scaley;
-
 
           // Set image type.
           switch($info['mime']) {
@@ -846,18 +948,22 @@ class BookExportRtfTest extends UnitTestCase
           if ($lastinlevel != 1 | $depth == 1) {
             $rtf .= "\\par}\r\n";
           }
-          if ($depth == 1 & $lastinlevel == 1) {
-            // Add some empty space after the list.
-            // $rtf .= "{\\pard\\sa0\\par}\r\n";
-          }
           $e->outertext = $rtf;
           break;
 
         case 'code':
         case 'p':
           // These are all paragraphs with specific markup
-          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
-          $e->outertext = "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n";
+          $css = $this->bookexportrtf_get_css_style_from_element($e);
+          if (array_key_exists("display", $css)) {
+            if (trim($css["display"]) == "none") {
+              $e->outertext = "";
+            }
+          }
+          else {
+            $style = $this->bookexportrtf_get_rtf_style_from_css($css, $e->tag);
+            $e->outertext = "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n";
+          }
           break;
 
         case 's':
@@ -865,23 +971,14 @@ class BookExportRtfTest extends UnitTestCase
         case 'ins':
         case 'span':
           // These are inline elements with specific markup
-
-          // Remove the author information.
-          $class = $e->class;
-          if ($class == "field field--name-title field--type-string field--label-hidden") {
-            // label
-            $e->outertext = "";
-          }
-          elseif ($class == "field field--name-uid field--type-entity-reference field--label-hidden") {
-            // author
-            $e->outertext = "";
-          }
-          elseif ($class == "field field--name-created field--type-created field--label-hidden") {
-            // publication date
-            $e->outertext = "";
+          $css = $this->bookexportrtf_get_css_style_from_element($e);
+          if (array_key_exists("display", $css)) {
+            if (trim($css["display"]) == "none") {
+              $e->outertext = "";
+            }
           }
           else {
-            $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+            $style = $this->bookexportrtf_get_rtf_style_from_css($css, $e->tag);
             $e->outertext = "{" . $style[1] . $e->innertext . "}";
           }
           break;
