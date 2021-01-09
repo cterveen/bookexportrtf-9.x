@@ -579,16 +579,31 @@ class BookExportRtfController extends ControllerBase {
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $rtf = $style[0];
-          $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-left");
-          $rtf .= "{\\headerl\\pard ". $header_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
-          $header_style = $this->bookexportrtf_get_rtf_style_from_selector(".header-right");
-          $rtf .= "{\\headerr\\pard ". $header_style[1] . $title . "\\par}\r\n";
-          $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-left");
-          $rtf .= "{\\footerl\\pard ". $footer_style[1] . "\\chpgn \\par}\r\n";
-          $footer_style = $this->bookexportrtf_get_rtf_style_from_selector(".footer-right");
-          $rtf .= "{\\footerr\\pard ". $footer_style[1] . "\\chpgn \\par}\r\n";
 
-          //
+          // set headers and footers
+          foreach ([".header-left", ".header-right", ".footer-left", ".footer-right"] as $selector) {
+            $css = $this->bookexportrtf_css[$selector];
+            if (!array_key_exists("display", $css)) {
+              $css["display"] = "initial";
+            }
+            if (trim($css["display"]) != "none") {
+              $element_style = $this->bookexportrtf_get_rtf_style_from_selector($selector);
+              if ($selector == ".header-left") {
+                $rtf .= "{\\headerl\\pard ". $element_style[1] . $this->bookexportrtf_book_title . "\\par}\r\n";
+              }
+              else if ($selector == ".header-right") {
+                $rtf .= "{\\headerr\\pard ". $element_style[1] . $title . "\\par}\r\n";
+              }
+              else if ($selector == ".footer-left") {
+                $rtf .= "{\\footerl\\pard ". $element_style[1] . "\\chpgn \\par}\r\n";
+              }
+              else if ($selector == ".footer-right") {
+                $rtf .= "{\\footerr\\pard ". $element_style[1] . "\\chpgn \\par}\r\n";
+              }
+            }
+          }
+
+          // add the chapter to the toc and make a bookmark
           array_push($this->bookexportrtf_toc, $title);
           $tid = count($this->bookexportrtf_toc);
           $rtf .= "{\\*\\bkmkstart chapter".$tid."}{\\*\\bkmkend chapter".$tid."}\r\n";
@@ -651,7 +666,6 @@ class BookExportRtfController extends ControllerBase {
           $rtf .= "\\pichgoal" . $picheight;
           $rtf .= "\\picscalex" . $scalex;
           $rtf .= "\\picscaley" . $scaley;
-
 
           // Set image type.
           switch($info['mime']) {
@@ -780,18 +794,22 @@ class BookExportRtfController extends ControllerBase {
           if ($lastinlevel != 1 | $depth == 1) {
             $rtf .= "\\par}\r\n";
           }
-          if ($depth == 1 & $lastinlevel == 1) {
-            // Add some empty space after the list.
-            // $rtf .= "{\\pard\\sa0\\par}\r\n";
-          }
           $e->outertext = $rtf;
           break;
 
         case 'code':
         case 'p':
           // These are all paragraphs with specific markup
-          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
-          $e->outertext = "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n";
+          $css = $this->bookexportrtf_get_css_style_from_element($e);
+          if (array_key_exists("display", $css)) {
+            if (trim($css["display"]) == "none") {
+              $e->outertext = "";
+            }
+          }
+          else {
+            $style = $this->bookexportrtf_get_rtf_style_from_css($css, $e->tag);
+            $e->outertext = "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n";
+          }
           break;
 
         case 's':
@@ -799,23 +817,14 @@ class BookExportRtfController extends ControllerBase {
         case 'ins':
         case 'span':
           // These are inline elements with specific markup
-
-          // Remove the author information.
-          $class = $e->class;
-          if ($class == "field field--name-title field--type-string field--label-hidden") {
-            // label
-            $e->outertext = "";
-          }
-          elseif ($class == "field field--name-uid field--type-entity-reference field--label-hidden") {
-            // author
-            $e->outertext = "";
-          }
-          elseif ($class == "field field--name-created field--type-created field--label-hidden") {
-            // publication date
-            $e->outertext = "";
+          $css = $this->bookexportrtf_get_css_style_from_element($e);
+          if (array_key_exists("display", $css)) {
+            if (trim($css["display"]) == "none") {
+              $e->outertext = "";
+            }
           }
           else {
-            $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+            $style = $this->bookexportrtf_get_rtf_style_from_css($css, $e->tag);
             $e->outertext = "{" . $style[1] . $e->innertext . "}";
           }
           break;
