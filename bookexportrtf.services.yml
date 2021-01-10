@@ -1,0 +1,3 @@
+services:
+  bookexportrtf.convertrtf:
+    class: Drupal\bookexportrtf\BookConvertRtf
