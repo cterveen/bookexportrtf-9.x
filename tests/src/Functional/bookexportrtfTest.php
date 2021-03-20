@@ -2,9 +2,9 @@
 
 namespace Drupal\Tests\bookexportrtf;
 
-use CssParser;
 use Drupal\bookexportrtf\BookConvertRtf;
 use Drupal\Tests\UnitTestCase;
+use DateTime;
 
 /**
  * Test basic functionality of bookexportrtf
@@ -55,6 +55,81 @@ class BookExportRtfTest extends UnitTestCase
   }
 
   /**
+   * Test getting the html conversion on a very simple document
+   */
+  public function test_document_conversion() {
+    $content = "<html>\r\n";
+    $content .= "<head><title>Test document</title></head>\r\n";
+    $content .= "<body>\r\n";
+    $content .= "<article>\r\n";
+    $content .= "<h1>Book title</h1>\r\n";
+    $content .= "<article>\r\n";
+    $content .= "<h1>Chapter 1</h1>\r\n";
+    $content .= "<p>This is the first <a name = \"indexParagraph\"></a>paragraph</p>\r\n";
+    $content .= "</article>\r\n";
+    $content .= "</article>\r\n";
+    $content .= "</body>\r\n";
+    $content .= "</html>";
+
+    $date = new DateTime();
+
+    // header
+    $expected = "{\\rtf1\\ansi\r\n";
+    $expected .= "\\deff0 {\\fonttbl {\\f0\\fnil Calibri;}}\r\n";
+    $expected .= "{\\colortbl ; \\red0\\green0\\blue0; \\red255\\green0\\blue0; \\red0\\green255\\blue0; \\red0\\green0\\blue255; \\red255\\green255\\blue255; \\red138\\green43\\blue226;}\r\n";
+    $expected .= "\\vertdoc\\paperh16834\\paperw11909\r\n";
+    $expected .= "\\fet0\\facingp\\ftnbj\\ftnrstpg\\widowctrl\r\n";
+    $expected .= "\\plain\r\n";
+    // font page
+    $expected .= "{\\pard \\sa0\\qc\\fs32\\b\\keepn Book title\\par}\r\n";
+    // flyleaf
+    $expected .= "\\sect\\sftnrstpg\r\n";
+    $expected .= "{\\pard\\qc{\\b Book title}\\line\r\n";
+    $expected .= "\\line\r\n";
+    $expected .= "\\line\r\n";
+    $expected .= "Gegenereerd: " . date_format($date, "d-m-Y") . " \\par}\r\n";
+    // table of contents
+    $expected .= "\\sect\\sftnrstpg\r\n";
+    $expected .= "{\\pard \\sa195\\fs32\\b\\keepn Inhoud\\par}\r\n";
+    $expected .= "{\\pard {\\trowd\\cellx7000 \\cellx8309\r\n";
+    $expected .= "\\pard\\intbl Book title\\cell\\qr{\\field{\\*\\fldinst PAGEREF chapter1}}\\cell\\row\r\n";
+    $expected .= "\\trowd\\cellx7000 \\cellx8309\r\n";
+    $expected .= "\\pard\\intbl Chapter 1\\cell\\qr{\\field{\\*\\fldinst PAGEREF chapter2}}\\cell\\row\r\n";
+    $expected .= "\\trowd\\cellx7000 \\cellx8309\r\n";
+    $expected .= "\\pard\\intbl Index\\cell\\qr{\\field{\\*\\fldinst PAGEREF chapter3}}\\cell\\row\r\n";
+    $expected .= "}\\par}\r\n";
+    $expected .= "\\sect\\sftnrstpg\r\n";
+    $expected .= "{\\headerl\\pard \\ql\\b Book title\\par}\r\n";
+    $expected .= "{\\headerr\\pard \\qr Book title\\par}\r\n";
+    $expected .= "{\\footerl\\pard \\ql \\chpgn \\par}\r\n";
+    $expected .= "{\\footerr\\pard \\qr \\chpgn \\par}\r\n";
+    $expected .= "{\\*\\bkmkstart chapter1}{\\*\\bkmkend chapter1}\r\n";
+    $expected .= "{\\pard \\sa195\\fs32\\b\\keepn Book title\\par}\r\n";
+    $expected .= "\\sect\\sftnrstpg\r\n";
+    $expected .= "{\\headerl\\pard \\ql\\b Book title\\par}\r\n";
+    $expected .= "{\\headerr\\pard \\qr Chapter 1\\par}\r\n";
+    $expected .= "{\\footerl\\pard \\ql \\chpgn \\par}\r\n";
+    $expected .= "{\\footerr\\pard \\qr \\chpgn \\par}\r\n";
+    $expected .= "{\\*\\bkmkstart chapter2}{\\*\\bkmkend chapter2}\r\n";
+    $expected .= "{\\pard \\sa195\\fs32\\b\\keepn Chapter 1\\par}\r\n";
+    $expected .= "{\\pard \\sa195\\qj\\fs24 This is the first {\\*\\bkmkstart index-0}{\\*\\bkmkend index-0}paragraph\\par}\r\n";
+    $expected .= "\\sect\r\n";
+    $expected .= "{\\headerl\\pard \\ql\\b Book title\\par}\r\n";
+    $expected .= "{\\headerr\\pard \\qr Index\\par}\r\n";
+    $expected .= "{\\footerl\\pard \\ql \\chpgn \\par}\r\n";
+    $expected .= "{\\footerr\\pard \\qr \\chpgn \\par}\r\n";
+    $expected .= "{\\*\\bkmkstart chapter3}{\\*\\bkmkend chapter3}\r\n";
+    $expected .= "{\\pard \\sa195\\fs32\\b\\keepn Index\\par}\r\n";
+    $expected .= "\\sect\\sbknone\\cols2\r\n";
+    $expected .= "{\\pard \\sa0\\fs28\\b\\keepn P\\par}\r\n";
+    $expected .= "{\\pard \\sa195\\qj\\fs24 Paragraph {\\field{\\*\\fldinst PAGEREF index-0}}\par}\r\n";
+    $expected .= "}";
+
+    $observed = $this->convertrtf->bookexportrtf_convert($content);
+    $this->assertEquals($expected, $observed , "Failure converting basic book");
+  }
+
+  /**
    * Test getting the html conversion on some small elements
    */
   public function test_html_conversions() {
@@ -63,7 +138,7 @@ class BookExportRtfTest extends UnitTestCase
       "a:href (url != label)" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\super \\chftn} http://www.rork.nl/}"],
       "a:name (index item)" => ['<a name = "indexItem"></a>an index item', 'a', "{\\*\\bkmkstart index-0}{\\*\\bkmkend index-0}an index item"],
       "a:name (no index item)" => ['<a name = "NoIndexItem"></a>no index item', 'a', "no index item"],
-      "article" => ['<article><p>some text</p></article>', 'article', "\\sect\\sftnrstp\r\n{\\pard \\sa195\\qj some text\\par}\r\n"],
+      "article" => ['<article><p>some text</p></article>', 'article', "\\sect\\sftnrstpg\r\n{\\pard \\sa195\\qj some text\\par}\r\n"],
       "b" => ['<b>bold</b>', 'b', "{\\b bold}"],
       "br" => ['<br>', 'br', "\\tab\\line\r\n"],
       "br (with closing slash)" => ['<br />', 'br', "\\tab\\line\r\n"],
