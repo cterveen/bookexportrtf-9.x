@@ -76,8 +76,8 @@ class BookConvertRtf {
   /**
    * Converts the book and its subpages to RTF.
    *
-   * @param \Drupal\node\NodeInterface $node
-   *   The node to export.
+   * @param \Drupal\node\NodeInterface $content
+   *   The the book in HTML format.
    *
    * @return string
    *   Return the book in RTF format.
@@ -141,10 +141,11 @@ class BookConvertRtf {
     $footer = "";
 
     if (count($this->bookexportrtf_index) > 0) {
+
       // mock a chapter
       $elements = $html->find("article");
       $section_style = $this->bookexportrtf_get_rtf_style_from_element($elements[1]);
-      $footer .= "\\sect"  . $section_style[1] . "\r\n";
+      $footer .= "\r\n\\sect"  . $section_style[1] . "\r\n";
 
       // make a nice title
       $header_html = str_get_html('<html><body><h1>Index</h1></body></html>');
@@ -156,15 +157,18 @@ class BookConvertRtf {
 
       ksort($this->bookexportrtf_index);
       $cur_initial = "";
-
       foreach (array_keys($this->bookexportrtf_index) as $label) {
         $anchor = "index-" . $this->bookexportrtf_index[$label];
         $initial = substr($label, 0, 1);
         if (is_numeric($initial)) {
           $initial = "#";
         }
+        $h2_style = $this->bookexportrtf_get_rtf_style_from_selector("h2");
+        // Try to find inheritted style elements
         $h2 = $html->find('h2');
-        $h2_style = $this->bookexportrtf_get_rtf_style_from_element($h2[0]);
+        if (isset($h2[0])) {
+          $h2_style = $this->bookexportrtf_get_rtf_style_from_element($h2[0]);
+        }
         $p = $html->find('p');
         $p_style = $this->bookexportrtf_get_rtf_style_from_element($p[0]);
         if ($initial != $cur_initial) {
@@ -245,7 +249,7 @@ class BookConvertRtf {
       $header .= "{\\pard ";
       $style = $this->bookexportrtf_get_rtf_style_from_element($toc[0]);
       $header .=  $style[1];
-      $header .= "Inhoud\r\n";
+      $header .= "Inhoud";
       $header .= "\\par}\r\n{\\pard {";
 
       // Remove the first title as this should be the title of the book and
@@ -484,7 +488,7 @@ class BookConvertRtf {
           $e->class .= " article-depth-" . $depth;
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
-          $e->outertext = "\\sect\\sftnrstp" . $style[1] . "\r\n" . $e->innertext . $style[2];
+          $e->outertext = "\\sect\\sftnrstpg" . $style[1] . "\r\n" . $e->innertext . $style[2];
           break;
 
         case 'br':
