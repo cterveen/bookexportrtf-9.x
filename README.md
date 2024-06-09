@@ -5,9 +5,9 @@ bookexport-rtf-9.x
 
 bookexport-rtf-9.x is a Drupal 9 module that exports a Drupal book or book page to RTF format. The module was build first for Drupal 7 to export books to something printable and readable as the printer friendly version isn't really reader friendly. bookexport-rtf-9.x creates an A4 document of the book or book page that contains elements suchs as a front page, table of contents, page numbers, chapter references etc. The module integrates with bookindex-9.x to add a page referenced index. The lay-out is customizable through CSS.
 
-The coding has been updated to Drupal 9.x coding standards and includes testing. The RTF document was tested in Microsoft Word and Libreoffice Writer. A help page and options are available. Internationalisation and localisation is not available. The module is not in the Drupal module repository.
+The coding has been updated to Drupal 9.x coding standards and includes testing. A help page and options are available. Internationalisation and localisation is not available. The module is not in the Drupal module repository.
 
-The project is currently not in use but worked in my test environment. Further development is intended.
+The project is currently not in use but worked in my test environment. The RTF document was tested in Microsoft Word and Libreoffice Writer. Further development is intended.
 
 ## Installation
 Depends on the Drupal [Book](https://www.drupal.org/project/book) module which is part of Drupal Core
@@ -42,4 +42,4 @@ Technical details from:
 - W3Schools CSS Reference <https://www.w3schools.com/cssref/index.php>
 
 ## License
-To be decided
+To be decided, but consider it free to use, modify and distribute.
