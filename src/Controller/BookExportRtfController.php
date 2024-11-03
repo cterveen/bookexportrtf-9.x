@@ -85,6 +85,7 @@ class BookExportRtfController extends ControllerBase {
     $content = new Response($this->renderer->renderRoot($exported_book));
 
     // Set style sheet(s)
+    $this->bookConvertRtf->bookexportrtf_load_css("modules/bookexportrtf/css/bookexportrtf.rtf.css");
     $this->bookConvertRtf->bookexportrtf_load_css("sites/all/modules/bookexportrtf/css/bookexportrtf.rtf.css");
     $theme = \Drupal::theme()->getActiveTheme();
     $this->bookConvertRtf->bookexportrtf_load_css($theme->getPath() . "/css/bookexportrtf.rtf.css");
