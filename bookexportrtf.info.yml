@@ -2,7 +2,7 @@ name: Book Export RTF
 type: module
 description: Export books or book pages to RTF
 core: 8.x
-core_version_requirement: ^8 || ^9
+core_version_requirement: ^8 || ^9 || ^10 || ^11
 package: Book
 
 dependencies:
