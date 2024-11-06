@@ -45,5 +45,5 @@ Technical details from:
 
 ## License
 
-bookexportrft-9.x is licensed under the GNU General Public License, version 2 or later. That means you are free to download, reuse, modify, and distribute any filesin this repository under the terms of either the GPL version 2 or version 3, and to run this module in combination with any code with any license that is compatible with either versions 2 or 3.  
+bookexportrft-9.x is licensed under the GNU General Public License, version 2 or later. That means you are free to download, reuse, modify, and distribute any files in this repository under the terms of either the GPL version 2 or version 3, and to run this module in combination with any code with any license that is compatible with either versions 2 or 3.  
 http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
