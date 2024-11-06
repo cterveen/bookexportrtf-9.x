@@ -152,14 +152,14 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
  */
 function bookexportrtf_node_links_alter(array &$links, NodeInterface $node, array &$context) {
   if ($context['view_mode'] != 'rss') {
-    if (isset($node->book['depth'])) {
+    if (isset($node->book)) {
       if ($context['view_mode'] == 'full' && node_is_page($node)) {
         $book_links['book_rtf'] = [
-          'title' => t('Download as RTF'),
+          'title' => t('RTF version'),
           'url' => Url::fromRoute('bookexportrtf.content', [
           'node' => $node->id(),
           ]),
-          'attributes' => ['title' => t('Download as RTF Document')],
+          'attributes' => ['title' => t('Download an RTF version of this page (and its subpages)')],
         ];
       }
     }
