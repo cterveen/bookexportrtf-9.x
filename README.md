@@ -3,11 +3,11 @@ bookexport-rtf-9.x
 
 ## Description
 
-bookexport-rtf-9.x is a Drupal 9 module that exports a Drupal book or book page to RTF format. The module was build first for Drupal 7 to export books to something printable and readable as the printer friendly version isn't really reader friendly. bookexport-rtf-9.x creates an A4 document of the book or book page that contains elements suchs as a front page, table of contents, page numbers, chapter references etc. The module integrates with bookindex-9.x to add a page referenced index. The lay-out is customizable through CSS.
+bookexport-rtf-9.x is a Drupal 9 module that exports a Drupal book or book page to RTF format. The module was build first for Drupal 7 to export books to something printable and readable as the printer friendly version isn't really reader friendly. The module exports a book page and its subpages to an A4 RTF document and adds elements suchs as a front page, table of contents, page numbers, chapter references etc. The module integrates with bookindex-9.x to add a page referenced index. A link to download the document is added to the bottom of the page. The lay-out is customizable through CSS.
 
-The project can be considered beta. The module is not in used but worked in my Drupal 9.x test environment and is currently being tested in Drupal 11.x with Book 1.x. The coding has been updated to Drupal 9.x coding standards and includes testing. The RTF document was tested in Microsoft Word and Libreoffice Writer. A help page and options are available. Internationalisation and localisation is not available. The module is not in the Drupal module repository.
+The project can be considered beta. The module is not in use but worked in a Drupal 9.x and Drupal 11.x (with Book 1.x) test environment. The coding has been updated to Drupal 9.x coding standards and includes testing. The RTF document was tested in Microsoft Word and Libreoffice Writer. A help page is available. The base language is English. Options, internationalisation and localisation are not available. The module is not in the Drupal module repository.
 
-Further development is intended.
+The module is under active maintainance.
 
 ## Installation
 Depends on the Drupal [Book](https://www.drupal.org/project/book) module which was part of Drupal Core until Drupal 10.x and is a separate module in Drupal 11.
@@ -22,9 +22,9 @@ Enable the module
 
 ## Use
 
-The RTF document can be accessed through the url (/book/exportrtf/\[node-id\]. A link to download the book or book page as RTF is available on every book page next to the printer friendly link (this doesn't seem to work in Drupal 11).
+The RTF document can be accessed through the url (/book/exportrtf/\[node-id\]). A link to download the book or book page as RTF is available on every book page next to the printer friendly link.
 
-Settings and help can be found in the admin area (/admin/help/bookexportrtf).
+Help can be found in the admin area (/admin/help/bookexportrtf).
 
 ## Credits
 
@@ -39,9 +39,11 @@ Depends on:
 
 Technical details from:
 
-- Microsoft RTF Specification
+- Microsoft Corporation Rich Text Format (RTF) Specification Version 1.9.1 https://msopenspecs.azureedge.net/files/Archive_References/[MSFT-RTF].pdf
 - RTF Pocket Guide by Sean M. Burke <https://www.oreilly.com/library/view/rtf-pocket-guide/9781449302047/>
 - W3Schools CSS Reference <https://www.w3schools.com/cssref/index.php>
 
 ## License
-To be decided, but consider it free to use, modify and distribute.
+
+bookexportrft-9.x is licensed under the GNU General Public License, version 2 or later. That means you are free to download, reuse, modify, and distribute any filesin this repository under the terms of either the GPL version 2 or version 3, and to run this module in combination with any code with any license that is compatible with either versions 2 or 3.  
+http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
