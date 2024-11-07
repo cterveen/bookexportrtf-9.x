@@ -142,7 +142,7 @@ class BookConvertRtf {
 
     if (count($this->bookexportrtf_index) > 0) {
 
-      // mock a chapter
+      // make a chapter
       $elements = $html->find("article");
       $section_style = $this->bookexportrtf_get_rtf_style_from_element($elements[1]);
       $footer .= "\r\n\\sect"  . $section_style[1] . "\r\n";
@@ -566,11 +566,29 @@ class BookConvertRtf {
           $url = $e->src;
 
           // Change relative urls to absolute urls
-          if (isset($this->bookexportrtf_base_url) & substr($url, 0, 4) != "http") {
-            $url = $this->bookexportrtf_base_url . $url;
+          if (substr($url, 0, 4) != "http") {
+            // paranoia check, relative urls should always be based on the host.
+            if (substr($url, 0, 1) == "/") {
+              // relative urls stems from host
+              $url = parse_url($this->bookexportrtf_base_url, PHP_URL_SCHEME) . "://" .
+                     parse_url($this->bookexportrtf_base_url, PHP_URL_HOST) . $url;
+            }
+            else {
+              $url = $this->bookexportrtf_base_url . "/" . $url;
+            }
           }
 
           $string = file_get_contents($url);
+
+          // check if the image was fetched
+          if (!$string) {
+            // check if there is an alt text
+            if (isset($e->alt)) {
+              $rtf = "{\\pard " . $e->alt . "\\par}\r\n";
+            }
+            $e->outertext = $rtf;
+            break;
+          }
 
           $info = getimagesizefromstring($string);
 
