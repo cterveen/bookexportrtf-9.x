@@ -65,6 +65,11 @@
  * See the module help page for more details.
  */
 
+/* page settings */
+.page {
+  size: 210mm 297mm;
+}
+
 /* basic html elements */
 body {
   font-family: Calibri;
