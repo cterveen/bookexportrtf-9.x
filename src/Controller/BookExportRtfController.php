@@ -92,6 +92,6 @@ class BookExportRtfController extends ControllerBase {
     // Convert the book to RTF
     $rtf = $this->bookConvertRtf->bookexportrtf_convert($content);
 
-    return new Response($rtf, Response::HTTP_OK, ['content-type' => 'application/rtf', 'content-disposition' => 'inline; filename="gele-boekje.rtf"']);
+    return new Response($rtf, Response::HTTP_OK, ['content-type' => 'application/rtf', 'content-disposition' => 'inline; filename="book.rtf"']);
   }
 }
