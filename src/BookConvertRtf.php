@@ -3,7 +3,6 @@
 namespace Drupal\bookexportrtf;
 
 use CssParser;
-use DateTime;
 
 class BookConvertRtf {
 
@@ -238,8 +237,7 @@ class BookConvertRtf {
         $header .= $this->bookexportrtf_base_url;
       }
       $header .= "\\line\r\n\\line\r\n";
-      $date = new DateTime();
-      $header .= t("Generated: ") . date_format($date, "d-m-Y") . " \\par}\r\n";
+      $header .= t("Generated: ") . \Drupal::service('date.formatter')->format(time(), "long") . " \\par}\r\n";
     }
 
     // Table of contents
