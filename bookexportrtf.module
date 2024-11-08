@@ -159,7 +159,7 @@ function bookexportrtf_node_links_alter(array &$links, NodeInterface $node, arra
           'url' => Url::fromRoute('bookexportrtf.content', [
           'node' => $node->id(),
           ]),
-          'attributes' => ['title' => t('Download an RTF version of this page (and its subpages)')],
+          'attributes' => ['title' => t('Download this page (and its subpages) as RTF file.')],
         ];
       }
     }
