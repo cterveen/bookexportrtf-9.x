@@ -4,6 +4,8 @@ description: Export books or book pages to RTF
 core: 8.x
 core_version_requirement: ^8 || ^9 || ^10 || ^11
 package: Book
+'interface translation project': bookexportrtf
+'interface translation server pattern': 'modules/bookexportrtf/translations/%project.%language.po'
 
 dependencies:
   - book:book
