@@ -138,7 +138,9 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '   <sup>2</sup>' . t(' page-break-after: avoid is only supported for h1 - h6') . '<br />';
       $output .= '   <sup>3</sup>' . t(' Text decoration style and color only affect underline due to limitations in RTF. LibreOffice does not support changing the underline color.') .'</p>';
       $output .= '<h3>' . t('Page size') . '</h3>';
-      $output .= '<p>' . t('The page size is A4 with standard margins. The page size can not be customized at the moment.') . '</p>';
+      $output .= '<p>' . t('The page size is defined by the size attribute of the .page selector, and should be formated as "width height". ');
+      $output .= t('For example "210mm 297mm" for the default A4 size. The following units can be used: cm, mm, in, px, pt, pc.') . '</p>';
+      $output .= '<p>' . t('The default margins of the software that opens the document are used.') . '</p>';
       $output .= '<h3>' . t('Whitespace') . '</h3>';
       $output .= '<p>' . t('Whitespace handling differs between HTML and RTF. Whereas HTML ignores whitespace between structural elements and shows multiple whitespace elements as a single space RTF only ignores a single space after a tag. Therefore whitespace between structural elements is removed, however whitespace within texts is preserved. Newlines are ignored by both RTF and HTML and are removed except when embeded in &lt;pre&gt;...&lt;/pre&gt; tags. The HTML newline element &lt;br /&gt; is replaced by a newline in RTF.') . '</p>';
 
