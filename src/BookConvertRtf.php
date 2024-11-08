@@ -216,7 +216,8 @@ class BookConvertRtf {
       $header .= "}\r\n";
     }
 
-    $header .= "\\vertdoc\\paperh16834\\paperw11909\r\n";
+    $page_style = $this->bookexportrtf_get_rtf_style_from_selector(".page");
+    $header .= "\\vertdoc" . $page_style[1] . "\r\n";
     $header .= "\\fet0\\facingp\\ftnbj\\ftnrstpg\\widowctrl\r\n";
     $header .= "\\plain\r\n";
 
@@ -1082,6 +1083,8 @@ class BookConvertRtf {
     // several other elements have similar properties to p, td or span.
 
     $supported = [
+      '.page' => [
+        'size' => 1,],
       'div' => [
         'page-break-before' => 1,
         'page-break-after' => 1,],
@@ -1290,6 +1293,11 @@ class BookConvertRtf {
     }
     if (array_key_exists('text-decoration-color', $css)) {
       $rtf_infix .= "\\ulc" . $this->bookexportrtf_convert_color($css['text-decoration-color']);
+    }
+
+    if (array_key_exists('size', $css)) {
+      $size = explode(" ", trim($css['size']));
+      $rtf_infix .= "\\paperh" . $this->bookexportrtf_convert_length($size[1]) . "\\paperw" . $this->bookexportrtf_convert_length($size[0]);
     }
 
     // Page breaks
@@ -1661,5 +1669,4 @@ class BookConvertRtf {
 
     return 24;
   }
-
 }
