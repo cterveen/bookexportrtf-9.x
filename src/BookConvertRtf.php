@@ -148,8 +148,8 @@ class BookConvertRtf {
       $footer .= "\r\n\\sect"  . $section_style[1] . "\r\n";
 
       // make a nice title
-      $header_html = str_get_html('<html><body><h1>Index</h1></body></html>');
-      $e = $header_html->find('html');
+      $header_html = str_get_html("<html><body><h1>" . t("Index") . "</h1></body></html>");
+      $e = $header_html->find("html");
       $this->bookexportrtf_traverse($e);
       $footer .= strip_tags($header_html);
 
@@ -239,7 +239,7 @@ class BookConvertRtf {
       }
       $header .= "\\line\r\n\\line\r\n";
       $date = new DateTime();
-      $header .= "Gegenereerd: " . date_format($date, "d-m-Y") . " \\par}\r\n";
+      $header .= t("Generated: ") . date_format($date, "d-m-Y") . " \\par}\r\n";
     }
 
     // Table of contents
@@ -249,7 +249,7 @@ class BookConvertRtf {
       $header .= "{\\pard ";
       $style = $this->bookexportrtf_get_rtf_style_from_element($toc[0]);
       $header .=  $style[1];
-      $header .= "Inhoud";
+      $header .= t("Contents");
       $header .= "\\par}\r\n{\\pard {";
 
       // Remove the first title as this should be the title of the book and
