@@ -5,6 +5,14 @@ namespace Drupal\bookexportrtf;
 use CssParser;
 
 class BookConvertRtf {
+  // Variables to be used within the class.
+  public $bookexportrtf_base_url;
+  public $bookexportrtf_colortbl;
+  public $bookexportrtf_toc;
+  public $bookexportrtf_index;
+  public $bookexportrtf_css;
+  public $bookexportrtf_book_title;
+  public $bookexportrtf_fonttbl;
 
   public function __construct() {
     /*
@@ -24,6 +32,7 @@ class BookConvertRtf {
      * (only needs parser.php)
      */
     include_once(DRUPAL_ROOT . '/libraries/schepp-css-parser/parser.php');
+
 
     // Variables to be used within the class.
     global $base_url;
@@ -721,7 +730,7 @@ class BookConvertRtf {
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           // fix the left margin to the depth
-          preg_match("|\\li(\d+)|", $style[1], $matches);
+          preg_match("|li(\d+)|", $style[1], $matches);
           $style[1] = preg_replace("|\\\\li\d+|","\\li" . ($depth*$matches[1]), $style[1]);
           $rtf .= "{\\pard " . $style[1];
 
