@@ -7,12 +7,12 @@ use CssParser;
 class BookConvertRtf {
   // Variables to be used within the class.
   public $bookexportrtf_base_url;
-  public $bookexportrtf_colortbl;
-  public $bookexportrtf_toc;
-  public $bookexportrtf_index;
-  public $bookexportrtf_css;
-  public $bookexportrtf_book_title;
-  public $bookexportrtf_fonttbl;
+  public $bookexportrtf_colortbl = [];
+  public $bookexportrtf_toc = [];
+  public $bookexportrtf_index = [];
+  public $bookexportrtf_css = [];
+  public $bookexportrtf_book_title = [];
+  public $bookexportrtf_fonttbl = [];
 
   public function __construct() {
     /*
@@ -32,17 +32,10 @@ class BookConvertRtf {
      * (only needs parser.php)
      */
     include_once(DRUPAL_ROOT . '/libraries/schepp-css-parser/parser.php');
-
-
-    // Variables to be used within the class.
+    
+    /* load the base url */
     global $base_url;
     $this->bookexportrtf_base_url = $base_url;
-    $this->bookexportrtf_colortbl = [];
-    $this->bookexportrtf_toc = [];
-    $this->bookexportrtf_index = [];
-    $this->bookexportrtf_css = [];
-    $this->bookexportrtf_book_title = "";
-    $this->bookexportrtf_fonttbl = [];
   }
 
   /**
@@ -50,6 +43,9 @@ class BookConvertRtf {
    *
    * @param $css_file
    *   The css file to load.
+   *
+   * @return boolean
+   *   Whether the css file was loaded or not
    */
   public function bookexportrtf_load_css($css_file) {
     $css = ["main" => []];
@@ -70,7 +66,6 @@ class BookConvertRtf {
           preg_match("|^([^,]+),?|", $this->bookexportrtf_css["body"]["font-family"], $r);
           $font = trim($r[1]);
           $font = preg_replace("|\"|", "", $font);
-          $this->bookexportrtf_fonttbl = [];
           $this->bookexportrtf_fonttbl[$font] = 0;
         }
       }
