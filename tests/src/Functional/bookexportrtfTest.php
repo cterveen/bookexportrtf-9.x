@@ -171,8 +171,8 @@ class BookExportRtfTest extends UnitTestCase
       "strike" => ['<strike>strike through</strike>', 'strike', "{\\strike strike through}"],
       "sub" => ['<sub>sub text</sub>', 'sub', "{\\sub sub text}"],
       "sup" => ['<sup>super text</sup>', 'sup', "{\\super super text}"],
-      "table" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr></tbody></table>', 'table', "{\\trowd\r\n\\cellx4655\r\n\\cellx9309\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
-      "table (colspan)" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr><tr><td colspan = "2">double cell</td></tr></tbody></table>', 'table', "{\\trowd\r\n\\cellx4655\r\n\\cellx9309\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n\\trowd\r\n\\cellx9309\r\n\\pard\\intbl{\\ri30\\li30\\ql double cell}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
+      "table" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr></tbody></table>', 'table', "{\\trowd\r\n\\cellx4153\r\n\\cellx8306\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
+      "table (colspan)" => ['<table><tbody><tr><td>cell 1</td><td>cell 2</td></tr><tr><td colspan = "2">double cell</td></tr></tbody></table>', 'table', "{\\trowd\r\n\\cellx4153\r\n\\cellx8306\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 1}\\cell\r\n\\pard\\intbl{\\ri30\\li30\\ql cell 2}\\cell\r\n\\row\r\n\\trowd\r\n\\cellx8306\r\n\\pard\\intbl{\\ri30\\li30\\ql double cell}\\cell\r\n\\row\r\n}\r\n{\\pard\\sa0\\par}\r\n"],
       "u" => ['<u>underline</u>', 'u', "{\\ul underline}"],
     ];
 
