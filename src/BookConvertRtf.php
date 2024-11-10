@@ -13,6 +13,13 @@ class BookConvertRtf {
   public $bookexportrtf_css = [];
   public $bookexportrtf_book_title = [];
   public $bookexportrtf_fonttbl = [];
+  public $bookexportrtf_page_height = 16838;
+  public $bookexportrtf_page_width = 11906;
+  public $bookexportrtf_page_margin_top = 1440;
+  public $bookexportrtf_page_margin_right = 1800;
+  public $bookexportrtf_page_margin_bottom = 1800;
+  public $bookexportrtf_page_margin_left = 1440;
+  public $bookexportrtf_page_width_inner = 8306;
 
   public function __construct() {
     /*
@@ -86,6 +93,16 @@ class BookConvertRtf {
    *   Return the book in RTF format.
    */
   public function bookexportrtf_convert($content) {
+    // Collect the page settings
+    $size = explode(" ", trim($this->bookexportrtf_css[".page"]["size"]));
+    $this->bookexportrtf_page_height = $this->bookexportrtf_convert_length($size[1]);
+    $this->bookexportrtf_page_width = $this->bookexportrtf_convert_length($size[0]);
+    $this->bookexportrtf_page_margin_top = $this->bookexportrtf_convert_length($this->bookexportrtf_css[".page"]["margin-top"]);
+    $this->bookexportrtf_page_margin_right = $this->bookexportrtf_convert_length($this->bookexportrtf_css[".page"]["margin-right"]);
+    $this->bookexportrtf_page_margin_bottom = $this->bookexportrtf_convert_length($this->bookexportrtf_css[".page"]["margin-bottom"]);
+    $this->bookexportrtf_page_margin_left = $this->bookexportrtf_convert_length($this->bookexportrtf_css[".page"]["margin-left"]);
+    $this->bookexportrtf_page_width_inner = $this->bookexportrtf_page_width - $this->bookexportrtf_page_margin_left - $this->bookexportrtf_page_margin_right;
+
     // Prepare the HTML for processing.
 
     // Remove everything before and after the HTML tags.
@@ -219,9 +236,12 @@ class BookConvertRtf {
       }
       $header .= "}\r\n";
     }
-
     $page_style = $this->bookexportrtf_get_rtf_style_from_selector(".page");
-    $header .= "\\vertdoc" . $page_style[1] . "\r\n";
+    $header .= "\\vertdoc\\paperh" . $this->bookexportrtf_page_height . "\\paperw" . $this->bookexportrtf_page_width . "\r\n";
+    $header .= "\\margl" . $this->bookexportrtf_page_margin_left;
+    $header .= "\\margr" . $this->bookexportrtf_page_margin_right;
+    $header .= "\\margt" . $this->bookexportrtf_page_margin_top;
+    $header .= "\\margb" . $this->bookexportrtf_page_margin_bottom . "\r\n";
     $header .= "\\fet0\\facingp\\ftnbj\\ftnrstpg\\widowctrl\r\n";
     $header .= "\\plain\r\n";
 
@@ -602,10 +622,9 @@ class BookConvertRtf {
           $picheight = $this->bookexportrtf_convert_length($height . "px");
 
           // Scale to page width if wider
-          // Page width A4 - margins = 11909 - 2x1800  = 8309 twips
-          if ($picwidth > 8309) {
+          if ($picwidth > $this->bookexportrtf_page_width_inner) {
             $ratio = $width/$height;
-            $picwidth = 8309;
+            $picwidth = $this->bookexportrtf_page_width_inner;
             $picheight = round($picwidth / $ratio);
           }
 
@@ -866,8 +885,7 @@ class BookConvertRtf {
             }
           }
 
-          // Standard pagewidth = 13909 - 2x1800 = 9309
-          $autowidth = (9309 - $widthdefined)/$auto;
+          $autowidth = ($this->bookexportrtf_page_width_inner - $widthdefined)/$auto;
 
           $colleft = 0;
           for ($col = 1; $col <= $num_cols; $col++) {
@@ -1087,8 +1105,6 @@ class BookConvertRtf {
     // several other elements have similar properties to p, td or span.
 
     $supported = [
-      '.page' => [
-        'size' => 1,],
       'div' => [
         'page-break-before' => 1,
         'page-break-after' => 1,],
@@ -1297,11 +1313,6 @@ class BookConvertRtf {
     }
     if (array_key_exists('text-decoration-color', $css)) {
       $rtf_infix .= "\\ulc" . $this->bookexportrtf_convert_color($css['text-decoration-color']);
-    }
-
-    if (array_key_exists('size', $css)) {
-      $size = explode(" ", trim($css['size']));
-      $rtf_infix .= "\\paperh" . $this->bookexportrtf_convert_length($size[1]) . "\\paperw" . $this->bookexportrtf_convert_length($size[0]);
     }
 
     // Page breaks
