@@ -11,6 +11,7 @@
  *    div article
  *
  *  Build in classes:
+ *    .page
  *    .header-left
  *    .header-right
  *    .footer-left
@@ -55,6 +56,9 @@
  *    page-break-after [always, auto, avoid]
  *      RTF only supports avoid for paragraphs, this only work for headers.
  *
+ *   Properties only applied to .page
+ *     size [cm, mm, in, px, pt, pc]
+ *
  * Note that values and colors should be in css format, this includes unit or
  * type specification. All values will be converted to rtf appropriate values.
  * Supported values are mentioned between square brackets behind the property.
@@ -65,9 +69,18 @@
  * See the module help page for more details.
  */
 
-/* page settings */
+/**
+ * Page format
+ *
+ * The special selector page format can be used to set the dimensions and
+ * margins of the page.
+ */
 .page {
   size: 210mm 297mm;
+  margin-top: 25.4mm;
+  margin-right: 31.75mm;
+  margin-bottom: 25.4mm;
+  margin-left: 31.75mm;
 }
 
 /* basic html elements */
