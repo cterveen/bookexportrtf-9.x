@@ -137,12 +137,20 @@ function bookexportrtf_help($route_name, RouteMatchInterface $route_match) {
       $output .= '<p><sup>1</sup>' . t(' page-break-before: avoid is only supported for div and article') . '<br />';
       $output .= '   <sup>2</sup>' . t(' page-break-after: avoid is only supported for h1 - h6') . '<br />';
       $output .= '   <sup>3</sup>' . t(' Text decoration style and color only affect underline due to limitations in RTF. LibreOffice does not support changing the underline color.') .'</p>';
-      $output .= '<h3>' . t('Page size') . '</h3>';
-      $output .= '<p>' . t('The page size is defined by the size attribute of the .page selector, and should be formated as "width height". ');
-      $output .= t('For example "210mm 297mm" for the default A4 size. The following units can be used: cm, mm, in, px, pt, pc.') . '</p>';
-      $output .= '<p>' . t('The default margins of the software that opens the document are used.') . '</p>';
+      $output .= '<h3>' . t('Page format') . '</h3>';
+      $output .= '<p>' . t('The page size is defined by the size attribute of the .page selector, and should be formated as "width height". For example "210mm 297mm" for the default A4 size.') . '</p>';
+      $output .= '<p>' . t('The page margins can be set using margin-top, margin-right, margin-bottom and margin-left.') . '</p>';
+      $output .= '<p>' . t('The following units can be used for both the page size and margins: cm, mm, in, px, pt, pc.') . '</p>';
       $output .= '<h3>' . t('Whitespace') . '</h3>';
       $output .= '<p>' . t('Whitespace handling differs between HTML and RTF. Whereas HTML ignores whitespace between structural elements and shows multiple whitespace elements as a single space RTF only ignores a single space after a tag. Therefore whitespace between structural elements is removed, however whitespace within texts is preserved. Newlines are ignored by both RTF and HTML and are removed except when embeded in &lt;pre&gt;...&lt;/pre&gt; tags. The HTML newline element &lt;br /&gt; is replaced by a newline in RTF.') . '</p>';
+      $output .= '<h3>' . t('Translations') . '</h3>';
+      $output .= '<p>' . t('Translations will be read from /modules/bookexportrtf/translations. If the module is installed in a different directory the po file may be uploaded manually.') . '</p>';
+      $output .= '<p>' . t('To make your own translation follow these steps:') . '</p>';
+      $output .= '<ol>';
+      $output .= '<li>' . t('Copy bookexportrtf.nl.po and replace the language code in the file name (nl) by the target language code.') . '</li>';
+      $output .= '<li>' . t('Replace each string identified with msgstr with your own translation of the string identified by msgid in the previous line.') . '</li>';
+      $output .= '<li>' . t('Update the Drupal interface translations.') . '</li>';
+      $output .= '</ol>';
 
       return $output;
     default:
