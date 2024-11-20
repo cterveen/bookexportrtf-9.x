@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @file
+ * Provides the controller for BookExportRtf
+ */
+
 namespace Drupal\bookexportrtf\Controller;
 
 use Drupal\book\BookExport;
@@ -89,8 +94,11 @@ class BookExportRtfController extends ControllerBase {
     $theme = \Drupal::theme()->getActiveTheme();
     $this->bookConvertRtf->bookexportrtf_load_css($theme->getPath() . "/css/bookexportrtf.rtf.css");
 
+    // Check whether the node is a book or a page
+    $is_book = ($node->id() == $node->book['bid']);
+
     // Convert the book to RTF
-    $rtf = $this->bookConvertRtf->bookexportrtf_convert($content);
+    $rtf = $this->bookConvertRtf->bookexportrtf_convert($content, $is_book);
 
     return new Response($rtf, Response::HTTP_OK, ['content-type' => 'application/rtf', 'content-disposition' => 'inline; filename="book.rtf"']);
   }
