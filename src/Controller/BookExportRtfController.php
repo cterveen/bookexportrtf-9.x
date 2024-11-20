@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Provides the controller for BookExportRtf
+ * Provides the controller for BookExportRtf.
  */
 
 namespace Drupal\bookexportrtf\Controller;
@@ -75,7 +75,7 @@ class BookExportRtfController extends ControllerBase {
    *   The node to export.
    *
    * @return object
-   *   Return a respose object of the rtf-file.
+   *   Return a respose object of the RTF file.
    */
   public function content(NodeInterface $node) {
     if (!isset($node->book)) {
@@ -85,21 +85,20 @@ class BookExportRtfController extends ControllerBase {
       ];
     }
 
-    // Grab the contents of the book in HTML form
+    // Grab the contents of the book in HTML form.
     $exported_book = $this->bookExport->bookExportHtml($node);
     $content = new Response($this->renderer->renderRoot($exported_book));
 
-    // Set style sheet(s)
+    // Set style sheet(s).
     $this->bookConvertRtf->bookexportrtf_load_css(\Drupal::service('extension.list.module')->getPath('bookexportrtf') . "/css/bookexportrtf.rtf.css");
     $theme = \Drupal::theme()->getActiveTheme();
     $this->bookConvertRtf->bookexportrtf_load_css($theme->getPath() . "/css/bookexportrtf.rtf.css");
 
-    // Check whether the node is a book or a page
+    // Check whether the node is a book or a page.
     $is_book = ($node->id() == $node->book['bid']);
 
-    // Convert the book to RTF
+    // Convert the book to RTF.
     $rtf = $this->bookConvertRtf->bookexportrtf_convert($content, $is_book);
-
     return new Response($rtf, Response::HTTP_OK, ['content-type' => 'application/rtf', 'content-disposition' => 'inline; filename="book.rtf"']);
   }
 }
