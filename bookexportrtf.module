@@ -4,6 +4,7 @@
  * @file
  * Provides RTF export posibilities for books
  */
+
 use Drupal\node\NodeInterface;
 use Drupal\Core\Url;
 use Drupal\Core\Routing\RouteMatchInterface;
