@@ -27,25 +27,17 @@ class BookConvertRtf {
   public $bookexportrtf_page_width_inner = 8306;
 
   public function __construct() {
-    /*
-     * Load the HTML parser
-     *
-     * get it here: https://simplehtmldom.sourceforge.io/
-     * save it to: /libraries/simle_html_dom/
-     * (only needs simple_html_dom.php)
-     */
+    // Load the HTML parser.
+    // Get it here: https://simplehtmldom.sourceforge.io/
+    // Save simple_html_dom.php to: /libraries/simle_html_dom/
     include_once(DRUPAL_ROOT . '/libraries/simple_html_dom/simple_html_dom.php');
 
-    /*
-     * Load the CSS parser
-     *
-     * get it here: https://github.com/Schepp/CSS-Parser
-     * save it to: /libraries/schepp-css-parser/
-     * (only needs parser.php)
-     */
+    // Load the CSS parser.
+    // Get it here: https://github.com/Schepp/CSS-Parser
+    // Save parser.php to: /libraries/schepp-css-parser/
     include_once(DRUPAL_ROOT . '/libraries/schepp-css-parser/parser.php');
     
-    /* load the base url */
+    // Load the base url.
     global $base_url;
     $this->bookexportrtf_base_url = $base_url;
   }
@@ -56,8 +48,8 @@ class BookConvertRtf {
    * @param $css_file
    *   The css file to load.
    *
-   * @return boolean
-   *   Whether the css file was loaded or not
+   * @return bool
+   *   Whether the css file was loaded or not.
    */
   public function bookexportrtf_load_css($css_file) {
     $css = ["main" => []];
@@ -91,7 +83,7 @@ class BookConvertRtf {
   /**
    * Converts the book and its subpages to RTF.
    *
-   * @param \Drupal\node\NodeInterface $content
+   * @param string $content
    *   The the book in HTML format.
    * @param bool $is_book
    *   Whether the content is a book (TRUE) or a page (FALSE).
@@ -116,14 +108,14 @@ class BookConvertRtf {
     $content = preg_replace("|^[^<]+|", "", $content);
     $content = preg_replace("|>[^>]+$|", ">", $content);
 
-    // Remove newlines except when newlines are enclosed by pre-tags.
-    $html = str_get_html($content,true,true,'UTF-8',false);
+    // Replace newlines within pre elements with rtf newlines, then remove all
+    // newlines
+    $html = str_get_html($content, true, true, 'UTF-8', false);
     $elements = $html->find("pre");
     foreach ($elements as $e) {
       $e->outertext = preg_replace("|[\r\n]|", "\\tab\\line ", $e->outertext);
     }
     $content = $html;
-
     $content = preg_replace("|[\r\n]|", "", $content);
 
     // Remove white-space between structural elements.
@@ -141,26 +133,17 @@ class BookConvertRtf {
     // Create the HTML object.
     $html = str_get_html($content);
 
-    // Set some of the books attributes.
-
-    // The title of the book
+    // Get the table of contents (all h1) and title (first h1)
     $toc = $html->find("h1");
     $this->bookexportrtf_book_title = $toc[0]->innertext;
 
-    // Generate the content.
-    //
-    // This is done first because the font and color tables may be appended
+    // Convert the content first as the font and color tables may be appended
     // during the conversion process.
-    //
-    // The actual conversion is done by bookexportrtf_traverse.
-
     $elements = $html->find('html');
     $this->bookexportrtf_traverse($elements);
     $content = strip_tags($html);
 
-    // Generate the footer
-    //
-    // This is done second so the header goes to the end of the toc
+    // Generate the footer second, so the header can be added to the toc.
     //
     // Footer
     // - index
@@ -168,7 +151,6 @@ class BookConvertRtf {
     $footer = "";
 
     if ($is_book && count($this->bookexportrtf_index) > 0) {
-
       // Add a new chapter unless the last chapter is the index.
       if ($toc[array_key_last($toc)]->innertext != "Index") {
         $elements = $html->find("article");
@@ -176,6 +158,8 @@ class BookConvertRtf {
         $footer .= "\r\n\\sect"  . $section_style[1] . "\r\n";
         $header_html = str_get_html("<html><body><h1>" . t("Index") . "</h1></body></html>");
         $e = $header_html->find("html");
+        // Process through bookexportrtf_traverse() to add it to the toc and
+        // update the font and color table.
         $this->bookexportrtf_traverse($e);
         $footer .= strip_tags($header_html);
       }
@@ -217,14 +201,17 @@ class BookConvertRtf {
 
     // Generate the header.
     //
-    // Header
+    // Header for books
     // - RTF header
     // - Front page
     // - Flyleaf containing URL and date of download
     // - Table of contents
-    // - Start of first page
+    //
+    // Header for pages
+    // - RTF header
+    // - Merged front page and flyleaf
 
-     // RTF header
+    // RTF header
     $header = "\\rtf1\\ansi\r\n";
     $header .= "\\deff0 {\\fonttbl ";
     if (!is_array($this->bookexportrtf_fonttbl)) {
@@ -252,8 +239,8 @@ class BookConvertRtf {
     $header .= "\\fet0\\facingp\\ftnbj\\ftnrstpg\\widowctrl\r\n";
     $header .= "\\plain\r\n";
 
-    // Front page and fly leave
-    $title_html = str_get_html("<html><body><h3>" . $this->bookexportrtf_book_title . "</body></html>");
+    // Front page and flyleaf
+    $title_html = str_get_html("<html><body><h3>" . $this->bookexportrtf_book_title . "</h3></body></html>");
     $elements = $title_html->find('html');
     $this->bookexportrtf_traverse($elements);
     $title_html = strip_tags($title_html);
@@ -263,7 +250,7 @@ class BookConvertRtf {
       $header .= "{\\pard\\qc {\\b " . $this->bookexportrtf_book_title . "}\\par}\r\n";
     }
     if (isset($this->bookexportrtf_base_url)) {
-    $header .= "{\\pard\\qc " . $this->bookexportrtf_base_url . "\\par}\r\n";;
+      $header .= "{\\pard\\qc " . $this->bookexportrtf_base_url . "\\par}\r\n";
     }
     $header .= "\\line\r\n\\line\r\n";
     $header .= "{\\pard\\qc " . t("Generated: ") . \Drupal::service('date.formatter')->format(time(), "long") . "\\par}\r\n";
@@ -299,9 +286,7 @@ class BookConvertRtf {
     // Make the final document.
     $content = "{" . $header . trim($content) . $footer . "}";
 
-    // Encode special characters as RTF.
-
-    // extended ascii
+    // Encode extended ascii characters as RTF.
     $content = preg_replace("|€|", "\'80", $content);
     // $content = preg_replace("|foo|", "\'81", $content);
     $content = preg_replace("|‚|", "\'82", $content);
@@ -431,7 +416,7 @@ class BookConvertRtf {
     $content = preg_replace("|þ|", "\'fe", $content);
     $content = preg_replace("|ÿ|", "\'ff", $content);
 
-    // html
+    // Encode HTML characters as RTF.
     $content = preg_replace("|&amp;|", "&", $content);
     $content = preg_replace("|&deg;|", "\'b0", $content);
     $content = preg_replace("|&gt;|", ">", $content);
@@ -439,7 +424,7 @@ class BookConvertRtf {
     $content = preg_replace("|&nbsp;|", " ", $content);
     $content = preg_replace("|&#039;|", "'", $content);
 
-    // non breaking space
+    // Encode HTML non-breaking space as RTF.
     $content = preg_replace("|\x{C2}\x{A0}|", " ", $content);
 
     return $content;
@@ -448,16 +433,14 @@ class BookConvertRtf {
   /**
    * Traverse the HTML tree and change HTML into RTF.
    *
-   * HTML parsers may not spawn demons but if you use them to replace HTML tags
-   * by RTF code they do attract gremlins as the parser gets in trouble with
-   * nested tags (which occur a lot in HTML). Probably the parser is losing
-   * the structure. This is solved by going through the tree and start
-   * replacing tags at the branches working up to the main stem.
+   * The HTML is traversed backwards replacing HTML elements by their
+   * corresponding RTF elements. Does not return anything but replaces the
+   * $html element.
    *
    * @param array $elements
    *   The elements from the HTML tree from which to start.
+   *
    */
-
   public function bookexportrtf_traverse($elements) {
     foreach ($elements as $e) {
       if ($e->first_child()) {
@@ -471,11 +454,11 @@ class BookConvertRtf {
       switch($tag) {
         case 'a':
           if ($e->href) {
-            // Link, replace with footnote.
+            // Link, keep the text if the url and link text are the same,
+            // otherwise use the link text and add a footnote with the url.
             $url = $e->href;
             $title = $e->innertext;
 
-            // Do not add a footnote if the link and label are the same.
             if (preg_match("|^(https?://)?(mailto:)?" . $title . "/?$|", $url)) {
               $e->outertext = $title;
             }
@@ -501,7 +484,8 @@ class BookConvertRtf {
           break;
 
         case 'article':
-          // get the depth and add it to the class
+          // Book pages are within article elements. Start a new section with a
+          // style based on article depth.
           $depth = 1;
           $p = $e->parent();
           while($p) {
@@ -524,21 +508,19 @@ class BookConvertRtf {
           break;
 
        case 'div':
-         // For divs I'm only interested in page-break-before and
-         // page-break-after other style elements will be enherited by its
-         // children.
-
+         // Add page-break before or page-break after if applicable.
          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
          $e->outertext = $style[0] . $e->innertext . $style[2];
           break;
 
         case 'h1':
+          // Chapter titles. Reset the headers and footers, add the chapter to
+          // the table of contents and add the chapter title iteslf.
           $title = $e->innertext;
 
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $rtf = $style[0];
 
-          // set headers and footers
           foreach ([".header-left", ".header-right", ".footer-left", ".footer-right"] as $selector) {
             $css = $this->bookexportrtf_css[$selector];
             if (!array_key_exists("display", $css)) {
@@ -561,7 +543,6 @@ class BookConvertRtf {
             }
           }
 
-          // add the chapter to the toc and make a bookmark
           array_push($this->bookexportrtf_toc, $title);
           $tid = count($this->bookexportrtf_toc);
           $rtf .= "{\\*\\bkmkstart chapter".$tid."}{\\*\\bkmkend chapter".$tid."}\r\n";
@@ -576,11 +557,13 @@ class BookConvertRtf {
         case 'h4':
         case 'h5':
         case 'h6':
+          // Sub headers
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $e->outertext = $style[0] . "{\\pard " . $style[1] . $e->innertext . "\\par}\r\n" . $style[2];
           break;
 
         case 'head':
+          // Remove the head as it does not contain useful information.
           $e->outertext = "";
           break;
 
@@ -589,11 +572,11 @@ class BookConvertRtf {
           break;
 
         case 'img':
+          // Download the image and add it to the book. If the image could not
+          // be added, add the alt-text instead.
           $url = $e->src;
-
-          // Change relative urls to absolute urls
           if (substr($url, 0, 4) != "http") {
-            // paranoia check, relative urls should always be based on the host.
+            // Paranoia check, relative urls should always be based on the host.
             if (substr($url, 0, 1) == "/") {
               // relative urls stems from host
               $url = parse_url($this->bookexportrtf_base_url, PHP_URL_SCHEME) . "://" .
@@ -606,9 +589,8 @@ class BookConvertRtf {
 
           $string = file_get_contents($url);
 
-          // check if the image was fetched
+          // Replace the image with the alt-text if it was not found.
           if (!$string) {
-            // check if there is an alt text
             if (isset($e->alt)) {
               $rtf = "{\\pard " . $e->alt . "\\par}\r\n";
             }
@@ -618,31 +600,25 @@ class BookConvertRtf {
 
           $info = getimagesizefromstring($string);
 
+          // Set the image dimensions. Scale to page width if wider.
           $width = $info[0];
           $height = $info[1];
-
           $picwidth = $this->bookexportrtf_convert_length($width . "px");
           $picheight = $this->bookexportrtf_convert_length($height . "px");
-
-          // Scale to page width if wider
           if ($picwidth > $this->bookexportrtf_page_width_inner) {
             $ratio = $width/$height;
             $picwidth = $this->bookexportrtf_page_width_inner;
             $picheight = round($picwidth / $ratio);
           }
-
-          $scalex = 100;
-          $scaley = 100;
-
           $rtf = "{";
-          $rtf .= "\\pard{\\pict\\picw" . $width;
+          $rtf .= "\\pard{\\pict";
+          $rtf .= "\\picw" . $width;
           $rtf .= "\\pich" . $height;
           $rtf .= "\\picwgoal" . $picwidth;
           $rtf .= "\\pichgoal" . $picheight;
-          $rtf .= "\\picscalex" . $scalex;
-          $rtf .= "\\picscaley" . $scaley;
+          $rtf .= "\\picscalex100\\picscaley100";
 
-          // Set image type.
+          // Set the image type.
           switch($info['mime']) {
             case "image/png":
               $rtf .= "\\pngblip\r\n";
@@ -655,24 +631,22 @@ class BookConvertRtf {
               $img = imagecreatefromstring($string);
               ob_start();
               imagepng($img);
-              $string = ob_get_contents(); // read from buffer
-              ob_end_clean(); // delete buffer
+              $string = ob_get_contents();
+              ob_end_clean();
               $rtf .= "\\pngblip\r\n";
           }
 
-          $hex = bin2hex($string);
-          $hex = wordwrap($hex, 80, "\r\n", TRUE);
-
-          $rtf .= $hex;
+          // Convert the image data.
+          $rtf .= wordwrap(bin2hex($string), 80, "\r\n", TRUE);
           $rtf .= "\r\n}\\par}\r\n";
 
           $e->outertext = $rtf;
           break;
 
         case 'li':
-          // This might be a bit dirty but as I'm not going to make elaborate
-          // list structures I feel confident working from li backwards and
-          // strip out the list-tags later.
+          // Replace the list item with indentation based on depth and the 
+          // appropriate marker. Add opening and closing lay-out to the first
+          // and last item in a list.
 
           $rtf = "";
 
@@ -682,7 +656,7 @@ class BookConvertRtf {
           $lastinlevel = 1;
           $lastinlist = 1;
 
-          // Type, level
+          // Get the type and depth of the list.
           $p = $e->parent();
           while($p) {
             if ($p->tag == "ul" | $p->tag == "ol") {
@@ -693,7 +667,7 @@ class BookConvertRtf {
             }
             $p = $p->parent();
           }
-          // Item number
+          // Get the place in the list.
           $s = $e->prev_sibling();
           while($s) {
             if ($s->tag == "li") {
@@ -701,7 +675,8 @@ class BookConvertRtf {
             }
             $s = $s->prev_sibling();
           }
-          // Last item?
+          // Is it the last item in the list? Also check for more items in the
+          // parents and children. Add a class to mark the end of the list.
           $s = $e->next_sibling();
           while($s) {
             if ($s->tag == "li") {
@@ -710,16 +685,6 @@ class BookConvertRtf {
               break;
             }
             $s = $s->next_sibling();
-          }
-          if ($lastinlist) {
-            $children = $e->children();
-            foreach ($children as $c) {
-              array_merge($children, $c->children());
-              if ($c->tag == "ol" | $c->tag == "ul") {
-                $lastinlist = 0;
-                break;
-              }
-            }
           }
           if ($lastinlist) {
             $p = $e->parent();
@@ -737,6 +702,16 @@ class BookConvertRtf {
             }
           }
           if ($lastinlist) {
+            $children = $e->children();
+            foreach ($children as $c) {
+              array_merge($children, $c->children());
+              if ($c->tag == "ol" | $c->tag == "ul") {
+                $lastinlist = 0;
+                break;
+              }
+            }
+          }
+          if ($lastinlist) {
             $e->class = $e->class . " last-item-in-list";
           }
 
@@ -745,12 +720,16 @@ class BookConvertRtf {
             $rtf .= "\\par}\r\n";
           }
 
+          // The left indentation for depth 1 is returned as li### and has to
+          // be multiplied with the depth of the list.
           $style = $this->bookexportrtf_get_rtf_style_from_element($e);
-          // fix the left margin to the depth
           preg_match("|li(\d+)|", $style[1], $matches);
           $style[1] = preg_replace("|\\\\li\d+|","\\li" . ($depth*$matches[1]), $style[1]);
+
+          // Wrap the list item in a paragraph
           $rtf .= "{\\pard " . $style[1];
 
+          // Add the marker
           if ($type == "ul") {
             $rtf .= "\\bullet\\tab ";
           }
@@ -759,22 +738,22 @@ class BookConvertRtf {
           }
           $rtf .= $e->innertext;
 
-          // Finish the paragraph unless it's the last item in a nested list
+          // Finish the paragraph unless it's the last item in a nested list.
+          if ($lastinlevel != 1 | $depth == 1) {
+            $rtf .= "\\par}\r\n";
+          }
 
           /**
            * @todo Text after the nested list will be included in the last item
            * of the nested list. That should not be the case.
            */
 
-          if ($lastinlevel != 1 | $depth == 1) {
-            $rtf .= "\\par}\r\n";
-          }
           $e->outertext = $rtf;
           break;
 
         case 'code':
         case 'p':
-          // These are all paragraphs with specific markup
+          // These are all paragraphs with a specific style.
           $css = $this->bookexportrtf_get_css_style_from_element($e);
           if (array_key_exists("display", $css)) {
             if (trim($css["display"]) == "none") {
@@ -791,7 +770,7 @@ class BookConvertRtf {
         case 'del':
         case 'ins':
         case 'span':
-          // These are inline elements with specific markup
+          // These are inline elements with  a specific style.
           $css = $this->bookexportrtf_get_css_style_from_element($e);
           if (array_key_exists("display", $css)) {
             if (trim($css["display"]) == "none") {
@@ -822,15 +801,14 @@ class BookConvertRtf {
           break;
 
         case 'tbody':
-          // Tables are a little bit more complicated than lists. The best way
-          // to do this is to store the whole table and then recreate it.
+          // Get the contents of the whole table and then remake it in RTF.
 
+          // Get the table dimensions, content and column width.
           $num_rows = 0;
           $num_cols = 0;
           $table;
           $colwidth = [];
 
-          // Retrieve table contents and some required specifications.
           $rows = $e->children();
           foreach ($rows as $r) {
             if ($r->tag != "tr") {
@@ -865,7 +843,7 @@ class BookConvertRtf {
                 $colwidth[$cur_cols] = $this->bookexportrtf_convert_length($css['width']);
               }
 
-              // correct cur_cols for colspan.
+              // Correct cur_cols for colspan.
               $cur_cols += $table[$num_rows][$cur_cols]['colspan']-1;
             }
             if ($cur_cols > $num_cols) {
@@ -873,32 +851,32 @@ class BookConvertRtf {
             }
           }
 
-          // Calculate column width
+          // Calculate column width:
           // 1. Determined width already defined
           // 2. Space out evenly over the remaining columns
-          $colright = [];
-          $widthdefined = 0;
+          $col_right = [];
+          $defined_width = 0;
           $auto = 0;
           for ($col = 1; $col <= $num_cols; $col++) {
             if (array_key_exists($col, $colwidth)) {
-              $widthdefined += $colwidth[$col];
+              $defined_width += $colwidth[$col];
             }
             else {
               $auto++;
             }
           }
 
-          $autowidth = ($this->bookexportrtf_page_width_inner - $widthdefined)/$auto;
+          $auto_width = ($this->bookexportrtf_page_width_inner - $defined_width)/$auto;
 
-          $colleft = 0;
+          $col_left = 0;
           for ($col = 1; $col <= $num_cols; $col++) {
             if (array_key_exists($col, $colwidth)) {
-              $colleft += $colwidth[$col];
+              $col_left += $colwidth[$col];
             }
             else {
-              $colleft += $autowidth;
+              $col_left += $auto_width;
             }
-            $colright[$col] = ceil($colleft);
+            $col_right[$col] = ceil($col_left);
           }
 
           // Build the table
@@ -910,7 +888,7 @@ class BookConvertRtf {
             foreach ($row as $cell) {
               $rtf .= $cell['style_prefix'];
               $rtf .= "\\cellx";
-              $rtf .= $colright[$cell['col']+$cell['colspan']-1];
+              $rtf .= $col_right[$cell['col']+$cell['colspan']-1];
               $rtf .= "\r\n";
             }
 
@@ -929,17 +907,8 @@ class BookConvertRtf {
           break;
 
         case 'u':
-          // switch to css to get the correct style (and color?);
-          $css = $this->bookexportrtf_get_css_style_from_element($e);
-          if (!array_key_exists('text-decoration', $css)) {
-            $css['text-decoration'] = "underline";
-          }
-          else {
-            if (!preg_match("|underline|", $css['text-decoration'])) {
-              $css['text-decoration'] = $css['text-decoration'] . " underline";
-            }
-          }
-          $style = $this->bookexportrtf_get_rtf_style_from_css($css, 'u');
+          // Use CSS to get the right underlyne style.
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
           $e->outertext = "{" . $style[1] . $e->innertext . "}";
       }
     }
@@ -955,7 +924,7 @@ class BookConvertRtf {
    *   The list of css properties and values.
    */
   public function bookexportrtf_get_css_style_from_element($e) {
-    // A list of inhereted css properties.
+    // Should we look in parents for additional style elements?
     // Most of these aren't used but keep them in for completeness.
     $css_inherit = [
       'border-collapse' => 1,
@@ -997,12 +966,11 @@ class BookConvertRtf {
       'word-wrap' => 1];
 
     $css = [];
-
     $depth = 0;
 
-    // Start the cascade looking upwards from the element to get all the css.
+    // Start the cascade looking upwards from the element to get all the CSS.
     while ($e) {
-      // Get css from the element's style attribute.
+      // First check the elements style attribute.
       $style = $e->style;
       if ($style != '') {
         $style = ".attribute {" . $style . " }";
@@ -1025,7 +993,7 @@ class BookConvertRtf {
         }
       }
 
-      // Get css associated with the element's id, classes and element.
+      // Then get the CSS associated with the element's id, class and element.
       $id = '#' . $e->id;
       $classes = explode(' ', $e->class);
       $classes = array_map(static function ($class) {
@@ -1036,11 +1004,11 @@ class BookConvertRtf {
       foreach (array_merge([$id], $classes, [$tag]) as $selector) {
         if (array_key_exists($selector, $this->bookexportrtf_css)) {
           foreach (array_keys($this->bookexportrtf_css[$selector]) as $property) {
-            // inheritance by default
+            // Inheritance by default.
             if (!array_key_exists($property, $css) & ($depth == 0 | array_key_exists($property, $css_inherit))) {
               $css[$property] = $this->bookexportrtf_css[$selector][$property];
             }
-            // inheritance by setting
+            // Inheritance by setting.
             if (array_key_exists($property, $css)) {
               if (trim($css[$property]) == 'inherit') {
                 $css[$property] = $this->bookexportrtf_css[$selector][$property];
@@ -1097,7 +1065,7 @@ class BookConvertRtf {
    */
   public function bookexportrtf_get_rtf_style_from_css($css, $selector) {
     if (empty($selector)) {
-      return ["","","",""];
+      return ["","",""];
     }
 
     // there are 4 basic style elements:
@@ -1157,12 +1125,12 @@ class BookConvertRtf {
         'text-decoration-color' => 1,
         'text-decoration-style' => 1,],];
 
-    // headers also support page breaks
+    // Headers support everything from paragraphs, but also page breaks.
     $supported['h1'] = $supported['p'];
     $supported['h1']['page-break-before'] = 1;
     $supported['h1']['page-break-after'] = 1;
 
-    // inherit
+    // Inherit support from other elements.
     $supported['article'] = $supported['div'];
     $supported['h2'] = $supported['h1'];
     $supported['h3'] = $supported['h1'];
@@ -1318,10 +1286,10 @@ class BookConvertRtf {
       $rtf_infix .= "\\ulc" . $this->bookexportrtf_convert_color($css['text-decoration-color']);
     }
 
-    // Page breaks
+    // Page breaks.
     if (array_key_exists('page-break-before', $css)) {
       if ($selector == 'article') {
-        // articles come with a section break, this also supports avoid
+        // Articles come with a section break, this also supports avoid.
         switch (trim($css['page-break-before'])) {
           case "always":
             $rtf_infix .= "\\sbkpage";
@@ -1345,7 +1313,7 @@ class BookConvertRtf {
       }
       if (trim($css['page-break-after']) == "avoid") {
         if ($selector != "div" & $selector != "article") {
-          // divs and article can't be attached to the next part
+          // Divs and article can't be attached to the next part.
           $rtf_infix .= "\\keepn";
         }
       }
@@ -1416,10 +1384,12 @@ class BookConvertRtf {
    * Convert CSS colors to a position in the colortable
    *
    * @param string $css
-   *   The value in CSS, this is a string with the value and unit
+   *   The value in CSS, this is a string with the value and unit.
+   *   Supported color schemes are: rgb, six character hex and CSS color names.
    *
    * @return string
-   *   The position in the color table
+   *   The position in the color table or the first item in the color table if
+   *   the color could not be converted.
    */
   public function bookexportrtf_convert_color($css) {
     $color = "";
@@ -1597,13 +1567,16 @@ class BookConvertRtf {
       }
     }
 
+    // Return the default color if it could not be converted.
     if ($color == "") {
       return 0;
     }
 
+    // Add the color to the color table if it isn't in there.
     if (!array_key_exists($color, $this->bookexportrtf_colortbl)) {
        $this->bookexportrtf_colortbl[$color] = count($this->bookexportrtf_colortbl)+1;
     }
+
     return $this->bookexportrtf_colortbl[$color];
   }
 
@@ -1612,9 +1585,10 @@ class BookConvertRtf {
    *
    * @param string $css
    *   The value in CSS, this is a string with the value and unit.
+   *   Supported units are cm, in, mm, pt, px, pc.
    *
    * @return string
-   *   The length in twips.
+   *   The length in twips or 0 if the length could not be converted.
    */
   public function bookexportrtf_convert_length($css) {
     preg_match("|^(-?\d+\.?\d*)([a-zA-Z]+)$|", trim($css), $r);
@@ -1624,7 +1598,6 @@ class BookConvertRtf {
     $css_value = $r[1];
     $css_unit = $r[2];
 
-    // length
     if ($css_unit == 'cm') {
       return round($css_value / 2.54 * 1440);
     }
@@ -1652,9 +1625,11 @@ class BookConvertRtf {
    *
    * @param string $css
    *   The value in CSS, this is a string with the value and unit.
+   *   Supported units are cm, in, mm, pt, px, pc.
    *
    * @return string
-   *   The font size in half points.
+   *   The font size in half points or 24 if the font-size could not be
+   *   converted.
    */
 
   public function bookexportrtf_convert_font_size($css) {
