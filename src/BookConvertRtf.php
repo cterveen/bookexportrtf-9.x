@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @file
+ * Handles the conversion of HTML content to RTF.
+ */
+
 namespace Drupal\bookexportrtf;
 
 use CssParser;
@@ -88,11 +93,13 @@ class BookConvertRtf {
    *
    * @param \Drupal\node\NodeInterface $content
    *   The the book in HTML format.
+   * @param bool $is_book
+   *   Whether the content is a book (TRUE) or a page (FALSE).
    *
    * @return string
    *   Return the book in RTF format.
    */
-  public function bookexportrtf_convert($content) {
+  public function bookexportrtf_convert($content, $is_book) {
     // Collect the page settings
     $size = explode(" ", trim($this->bookexportrtf_css[".page"]["size"]));
     $this->bookexportrtf_page_height = $this->bookexportrtf_convert_length($size[1]);
@@ -160,18 +167,18 @@ class BookConvertRtf {
 
     $footer = "";
 
-    if (count($this->bookexportrtf_index) > 0) {
+    if ($is_book && count($this->bookexportrtf_index) > 0) {
 
-      // make a chapter
-      $elements = $html->find("article");
-      $section_style = $this->bookexportrtf_get_rtf_style_from_element($elements[1]);
-      $footer .= "\r\n\\sect"  . $section_style[1] . "\r\n";
-
-      // make a nice title
-      $header_html = str_get_html("<html><body><h1>" . t("Index") . "</h1></body></html>");
-      $e = $header_html->find("html");
-      $this->bookexportrtf_traverse($e);
-      $footer .= strip_tags($header_html);
+      // Add a new chapter unless the last chapter is the index.
+      if ($toc[array_key_last($toc)]->innertext != "Index") {
+        $elements = $html->find("article");
+        $section_style = $this->bookexportrtf_get_rtf_style_from_element($elements[1]);
+        $footer .= "\r\n\\sect"  . $section_style[1] . "\r\n";
+        $header_html = str_get_html("<html><body><h1>" . t("Index") . "</h1></body></html>");
+        $e = $header_html->find("html");
+        $this->bookexportrtf_traverse($e);
+        $footer .= strip_tags($header_html);
+      }
 
       $footer .= "\\sect\\sbknone\\cols2\r\n";
 
@@ -245,28 +252,24 @@ class BookConvertRtf {
     $header .= "\\fet0\\facingp\\ftnbj\\ftnrstpg\\widowctrl\r\n";
     $header .= "\\plain\r\n";
 
-    // Front page
-    if (1) {
-      $title_html = str_get_html("<html><body><h3>" . $this->bookexportrtf_book_title . "</body></html>");
-      $elements = $title_html->find('html');
-      $this->bookexportrtf_traverse($elements);
-      $title_html = strip_tags($title_html);
-      $header .= $title_html;
-    }
-    // Flyleaf
-    if (1) {
+    // Front page and fly leave
+    $title_html = str_get_html("<html><body><h3>" . $this->bookexportrtf_book_title . "</body></html>");
+    $elements = $title_html->find('html');
+    $this->bookexportrtf_traverse($elements);
+    $title_html = strip_tags($title_html);
+    $header .= $title_html;
+    if ($is_book) {
       $header .= "\\sect\\sftnrstpg\r\n";
-      $header .= "{\\pard\\qc";
-      $header .= "{\\b " . $this->bookexportrtf_book_title . "}\\line\r\n";
-      if (isset($this->bookexportrtf_base_url)) {
-        $header .= $this->bookexportrtf_base_url;
-      }
-      $header .= "\\line\r\n\\line\r\n";
-      $header .= t("Generated: ") . \Drupal::service('date.formatter')->format(time(), "long") . " \\par}\r\n";
+      $header .= "{\\pard\\qc {\\b " . $this->bookexportrtf_book_title . "}\\par}\r\n";
     }
+    if (isset($this->bookexportrtf_base_url)) {
+    $header .= "{\\pard\\qc " . $this->bookexportrtf_base_url . "\\par}\r\n";;
+    }
+    $header .= "\\line\r\n\\line\r\n";
+    $header .= "{\\pard\\qc " . t("Generated: ") . \Drupal::service('date.formatter')->format(time(), "long") . "\\par}\r\n";
 
     // Table of contents
-    if (1) {
+    if ($is_book) {
       $header .= "\\sect\\sftnrstpg\r\n";
 
       $header .= "{\\pard ";
