@@ -240,11 +240,8 @@ class BookConvertRtf {
     $header .= "\\plain\r\n";
 
     // Front page and flyleaf
-    $title_html = str_get_html("<html><body><h3>" . $this->bookexportrtf_book_title . "</h3></body></html>");
-    $elements = $title_html->find('html');
-    $this->bookexportrtf_traverse($elements);
-    $title_html = strip_tags($title_html);
-    $header .= $title_html;
+    $style = $this->bookexportrtf_get_rtf_style_from_selector(".book-title");
+    $header .= "{\\pard " . $style[1] . $this->bookexportrtf_book_title . " \\par}\r\n";
     if ($is_book) {
       $header .= "\\sect\\sftnrstpg\r\n";
       $header .= "{\\pard\\qc {\\b " . $this->bookexportrtf_book_title . "}\\par}\r\n";
@@ -1139,6 +1136,7 @@ class BookConvertRtf {
     $supported['h6'] = $supported['h1'];
     $supported['code'] = $supported['p'];
     $supported['li'] = $supported['p'];
+    $supported['.book-title'] = $supported['p'];
     $supported['.header-left'] = $supported['p'];
     $supported['.header-right'] = $supported['p'];
     $supported['.footer-left'] = $supported['p'];
