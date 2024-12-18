@@ -12,6 +12,7 @@ use CssParser;
 class BookConvertRtf {
   // Variables to be used within the class.
   public $bookexportrtf_base_url;
+  public $bookexportrtf_is_book;
   public $bookexportrtf_colortbl = [];
   public $bookexportrtf_toc = [];
   public $bookexportrtf_index = [];
@@ -93,6 +94,7 @@ class BookConvertRtf {
    */
   public function bookexportrtf_convert($content, $is_book) {
     // Collect the page settings
+    $this->bookexportrtf_is_book = $is_book;
     $size = explode(" ", trim($this->bookexportrtf_css[".page"]["size"]));
     $this->bookexportrtf_page_height = $this->bookexportrtf_convert_length($size[1]);
     $this->bookexportrtf_page_width = $this->bookexportrtf_convert_length($size[0]);
@@ -150,7 +152,7 @@ class BookConvertRtf {
 
     $footer = "";
 
-    if ($is_book && count($this->bookexportrtf_index) > 0) {
+    if ($this->bookexportrtf_is_book && count($this->bookexportrtf_index) > 0) {
       // Add a new chapter unless the last chapter is the index.
       if ($toc[array_key_last($toc)]->innertext != "Index") {
         $elements = $html->find("article");
@@ -242,7 +244,7 @@ class BookConvertRtf {
     // Front page and flyleaf
     $style = $this->bookexportrtf_get_rtf_style_from_selector(".book-title");
     $header .= "{\\pard " . $style[1] . $this->bookexportrtf_book_title . " \\par}\r\n";
-    if ($is_book) {
+    if ($this->bookexportrtf_is_book) {
       $header .= "\\sect\\sftnrstpg\r\n";
       $header .= "{\\pard\\qc {\\b " . $this->bookexportrtf_book_title . "}\\par}\r\n";
     }
@@ -253,7 +255,7 @@ class BookConvertRtf {
     $header .= "{\\pard\\qc " . t("Generated: ") . \Drupal::service('date.formatter')->format(time(), "long") . "\\par}\r\n";
 
     // Table of contents
-    if ($is_book) {
+    if ($this->bookexportrtf_is_book) {
       $header .= "\\sect\\sftnrstpg\r\n";
 
       $header .= "{\\pard ";
@@ -463,7 +465,7 @@ class BookConvertRtf {
               $e->outertext = $title . "{\\footnote \\pard {\\super \\chftn} " . $url . "}";
             }
           }
-          else if ($e->name) {
+          else if ($e->name && $this->bookexportrtf_is_book) {
             // Anchor, replace for the index, ignore others.
             if (preg_match("|^index|", $e->name)) {
               $label = substr($e->name, 5);
