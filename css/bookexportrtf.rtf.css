@@ -7,7 +7,7 @@
  *    span del ins s
  *    th td
  *    pre
- *    u
+ *    em u
  *    div article
  *
  *  Build in classes:
@@ -29,6 +29,7 @@
  *      only for the p and span groups
  *    font-family [first value only]
  *    font-size [cm, mm, in, px, pt, pc]
+ *    font-style: italic
  *    font-weight [bold, normal]
  *    margin-* [cm, mm, in, px, pt, pc]
  *      In lists margin-left specifies the amount of indentation.
@@ -88,6 +89,10 @@
 body {
   font-family: Calibri;
   font-size: 12pt;
+}
+
+em {
+  font-style: italic;
 }
 
 h1 {
