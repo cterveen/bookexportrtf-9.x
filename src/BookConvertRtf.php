@@ -551,6 +551,11 @@ class BookConvertRtf {
           $e->outertext = $rtf;
           break;
 
+        case 'em':
+          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
+          $e->outertext = "{" . $style[1] . $e->innertext . "}";
+          break;
+
         case 'h2':
         case 'h3':
         case 'h4':
@@ -1082,6 +1087,7 @@ class BookConvertRtf {
         'color' => 1,
         'font-family' => 1,
         'font-size' => 1,
+        'font-style' => 1,
         'font-weight' => 1,
         'margin-top' => 1,
         'margin-right' => 1,
@@ -1108,6 +1114,7 @@ class BookConvertRtf {
         'margin-left' => 1,
         'font-family' => 1,
         'font-size' => 1,
+        'font-style' => 1,
         'font-weight' => 1,
         'text-align' => 1,
         'text-decoration' => 1,
@@ -1119,6 +1126,7 @@ class BookConvertRtf {
         'color' => 1,
         'font-family' => 1,
         'font-size' => 1,
+        'font-style' => 1,
         'font-weight' => 1,
         'text-decoration' => 1,
         'text-decoration-color' => 1,
@@ -1145,6 +1153,7 @@ class BookConvertRtf {
     $supported['.footer-right'] = $supported['p'];
     $supported['th'] = $supported['td'];
     $supported['del'] = $supported['span'];
+    $supported['em'] = $supported['span'];
     $supported['s'] = $supported['span'];
     $supported['ins'] = $supported['span'];
     $supported['u'] = $supported['span'];
@@ -1219,13 +1228,18 @@ class BookConvertRtf {
     if (array_key_exists('font-size', $css)) {
       $rtf_infix .= "\\fs". $this->bookexportrtf_convert_font_size($css['font-size']);
     }
+    if (array_key_exists('font-style', $css)) {
+      switch(trim($css['font-style'])) {
+        case 'italic':
+          $rtf_infix .= "\\i";
+          break;
+      }
+    }
     if (array_key_exists('font-weight', $css)) {
       switch(trim($css['font-weight'])) {
         case 'bold':
           $rtf_infix .= "\\b";
           break;
-
-        case 'normal':
       }
     }
     if (array_key_exists('color', $css)) {
