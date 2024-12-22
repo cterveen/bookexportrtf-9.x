@@ -138,6 +138,8 @@ class BookExportRtfTest extends UnitTestCase
    * Test getting the html conversion on some small elements
    */
   public function test_html_conversions() {
+    $this->convertrtf->bookexportrtf_is_book = 1;
+
     $expected = [
       "a:href (url == label)" => ['<a href = "http://www.rork.nl/">www.rork.nl</a>', 'a', "www.rork.nl"],
       "a:href (url != label)" => ['<a href = "http://www.rork.nl/">my website</a>', 'a', "my website{\\footnote \\pard {\\super \\chftn} http://www.rork.nl/}"],
@@ -150,9 +152,10 @@ class BookExportRtfTest extends UnitTestCase
       "code" => ['<code>echo "foo";</code>', 'code', "{\\pard \\f1 echo \"foo\";\\par}\r\n"],
       "del" => ['<del>delete</del>', 'del', "{\\strike delete}"],
       "div" => ['<div>text</div>', 'div', "text"],
+      "em" => ['<em>emphasis</em>', 'em', "{\\i emphasis}"],
       "h1" => ['<h1>header</h1>', 'h1', "{\\headerl\\pard \\ql\\b Book title\\par}\r\n{\\headerr\\pard \\qr header\\par}\r\n{\\footerl\\pard \\ql \\chpgn \\par}\r\n{\\footerr\\pard \\qr \\chpgn \\par}\r\n{\\*\\bkmkstart chapter1}{\\*\\bkmkend chapter1}\r\n{\\pard \\sa195\\fs32\\b\\keepn header\\par}\r\n"],
       "h2" => ['<h2>header</h2>', 'h2', "{\\pard \\sa0\\fs28\\b\\keepn header\\par}\r\n"],
-      "h3" => ['<h3>header</h3>', 'h3', "{\\pard \\sa0\\qc\\fs32\\b\\keepn header\\par}\r\n"],
+      "h3" => ['<h3>header</h3>', 'h3', "{\\pard \\b\\keepn header\\par}\r\n"],
       "h4" => ['<h4>header</h4>', 'h4', "{\\pard \\keepn header\\par}\r\n"],
       "h5" => ['<h5>header</h5>', 'h5', "{\\pard \\keepn header\\par}\r\n"],
       "h6" => ['<h6>header</h6>', 'h6', "{\\pard \\keepn header\\par}\r\n"],
@@ -211,6 +214,7 @@ class BookExportRtfTest extends UnitTestCase
       "color" => "blue",
       "font-family" => "Arial",
       "font-size" => "12pt",
+      "font-style" => "italic",
       "font-weight" => "bold",
       "margin-bottom" => "10px",
       "margin-left" => "10px",
@@ -254,6 +258,7 @@ class BookExportRtfTest extends UnitTestCase
     // color already tested
     // font-family already tested
     $this->assertArrayHasKey("font-size", $css, "Failure getting inheritance of font-size");
+    $this->assertArrayHasKey("font-style", $css, "Failure getting inheritance of font-size");
     // font-weight already tested
     $this->assertFalse(array_key_exists("margin-bottom", $css), "Failure getting inheritance of margin-bottom");
     $this->assertFalse(array_key_exists("margin-left", $css), "Failure getting inheritance of margin-left");
@@ -394,6 +399,7 @@ class BookExportRtfTest extends UnitTestCase
         "font-family (new)" => [["font-family" => "Arial"], "", "\\f1 ", ""],
         "font-family (two)" => [["font-family" => "Calibri, Arial"], "", "", ""],
         "font-size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
+        "font-style" => [["font-style" => "italic"], "", "\\i ", ""],
         "font-weight (bold)" => [["font-weight" => "bold"], "", "\\b ", ""],
         "font-weight (normal)" => [["font-weight" => "normal"], "", "", ""],
         "margin-bottom" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
@@ -469,6 +475,7 @@ class BookExportRtfTest extends UnitTestCase
         "font-family (new)" => [["font-family" => "Arial"], "", "\\f1 ", ""],
         "font-family (two)" => [["font-family" => "Calibri, Arial"], "", "", ""],
         "font-size" => [["font-size" => "12pt"], "", "\\fs24 ", ""],
+        "font-style" => [["font-style" => "italic"], "", "\\i ", ""],
         "font-weight (bold)" => [["font-weight" => "bold"], "", "\\b ", ""],
         "font-weight (normal)" => [["font-weight" => "normal"], "", "", ""],
         "margin-bottom" => [['margin-bottom' => '10px'], "", "\\sa150 ", ""],
