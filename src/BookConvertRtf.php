@@ -39,8 +39,7 @@ class BookConvertRtf {
     include_once(DRUPAL_ROOT . '/libraries/schepp-css-parser/parser.php');
     
     // Load the base url.
-    global $base_url;
-    $this->bookexportrtf_base_url = $base_url;
+    $this->bookexportrtf_base_url = \Drupal::urlGenerator()->generateFromRoute('<front>', [], ['absolute' => TRUE]);
   }
 
   /**
@@ -462,6 +461,10 @@ class BookConvertRtf {
               $e->outertext = $title;
             }
             else {
+              if (substr($url, 0, 1) == "/") {
+                $url = parse_url($this->bookexportrtf_base_url, PHP_URL_SCHEME) . "://" .
+                       parse_url($this->bookexportrtf_base_url, PHP_URL_HOST) . $url;
+              }
               $e->outertext = $title . "{\\footnote \\pard {\\super \\chftn} " . $url . "}";
             }
           }
