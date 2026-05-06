@@ -119,10 +119,10 @@ class BookConvertRtf {
     $content = $html;
     $content = preg_replace("|[\r\n]|", "", $content);
 
-    // Remove white-space between structural elements.
-    foreach (['td', 'p', 'li', 'div', 'h1', 'h2', 'h3', 'ol', 'ul', 'body', 'head', 'html', 'pre', 'code'] as $element) {
-      $content = preg_replace("|<\/".$element.">\s+<|", "</".$element."><", $content);
+    // Remove white-space before and after structural elements.
+    foreach (['article', 'footer', 'td', 'p', 'li', 'div', 'h1', 'h2', 'h3', 'ol', 'ul', 'body', 'head', 'html', 'pre', 'code', 'nav'] as $element) {
       $content = preg_replace("|>\s+<".$element."|", "><".$element, $content);
+      $content = preg_replace("|\s*<\/".$element.">\s+<|", "</".$element."><", $content);
     }
     $content = preg_replace("|-->\s+<|", "--><", $content);
     $content = preg_replace("|>\s+<!--|", "><!--", $content);
@@ -452,20 +452,29 @@ class BookConvertRtf {
       switch($tag) {
         case 'a':
           if ($e->href) {
-            // Link, keep the text if the url and link text are the same,
-            // otherwise use the link text and add a footnote with the url.
-            $url = $e->href;
-            $title = $e->innertext;
-
-            if (preg_match("|^(https?://)?(mailto:)?" . $title . "/?$|", $url)) {
-              $e->outertext = $title;
+            if ($e->rel) {
+              if ($e->rel == "bookmark") {
+                // these are repetitions of the chapter title, remove it.
+                $p = $e->parent();
+                $p->remove();
+              }
             }
             else {
-              if (substr($url, 0, 1) == "/") {
-                $url = parse_url($this->bookexportrtf_base_url, PHP_URL_SCHEME) . "://" .
-                       parse_url($this->bookexportrtf_base_url, PHP_URL_HOST) . $url;
+              // Link, keep the text if the url and link text are the same,
+              // otherwise use the link text and add a footnote with the url.
+              $url = $e->href;
+              $title = $e->innertext;
+
+              if (preg_match("|^(https?://)?(mailto:)?" . $title . "/?$|", $url)) {
+                $e->outertext = $title;
               }
-              $e->outertext = $title . "{\\footnote \\pard {\\super \\chftn} " . $url . "}";
+              else {
+                if (substr($url, 0, 1) == "/") {
+                  $url = parse_url($this->bookexportrtf_base_url, PHP_URL_SCHEME) . "://" .
+                         parse_url($this->bookexportrtf_base_url, PHP_URL_HOST) . $url;
+                }
+                $e->outertext = $title . "{\\footnote \\pard {\\super \\chftn} " . $url . "}";
+              }
             }
           }
           else if ($e->name && $this->bookexportrtf_is_book) {
@@ -488,6 +497,9 @@ class BookConvertRtf {
         case 'article':
           // Book pages are within article elements. Start a new section with a
           // style based on article depth.
+          if ($e->class) {
+            break;
+          }
           $depth = 1;
           $p = $e->parent();
           while($p) {
@@ -510,6 +522,10 @@ class BookConvertRtf {
           break;
 
        case 'div':
+         if ($e->class == "node__submitted") {
+           $e->remove();
+           break;
+         }
          // Add page-break before or page-break after if applicable.
          $style = $this->bookexportrtf_get_rtf_style_from_element($e);
          $e->outertext = $style[0] . $e->innertext . $style[2];
@@ -756,6 +772,12 @@ class BookConvertRtf {
            */
 
           $e->outertext = $rtf;
+          break;
+          
+        case 'nav':
+          // These are the index on the first book page and the links to the
+          // next page, previous page or up. Remove them.
+          $e->outertext = "";
           break;
 
         case 'code':
